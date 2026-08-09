@@ -265,23 +265,22 @@ export async function getCategoriesFromDb(): Promise<Category[]> {
 
 /**
  * Get Products from Supabase or Fallback
- * Customer: queries public_products view (returns public fields)
- * Admin: queries products table (returns full fields including source_price)
+ * Single source of truth: queries 'products' table for both Admin and Customer.
+ * When publicOnly is true, sanitizes products to remove internal supplier/cost fields.
  */
 export async function getProductsFromDb(publicOnly: boolean = true): Promise<any[]> {
   if (supabase) {
     try {
-      const table = publicOnly ? 'public_products' : 'products';
-      const { data, error } = await supabase.from(table).select('*').order('created_at', { ascending: false });
+      const { data, error } = await supabase.from('products').select('*').order('created_at', { ascending: false });
       if (!error && Array.isArray(data)) {
         inMemoryProducts = data as Product[];
         return publicOnly ? inMemoryProducts.map(sanitizePublicProduct) : inMemoryProducts;
       }
       if (error) {
-        console.warn(`[Supabase] Error querying ${table} table:`, error.message);
+        console.warn('[Supabase] Error querying products table:', error.message);
       }
     } catch (err: any) {
-      console.warn(`[Supabase] Exception fetching products from ${publicOnly ? 'public_products' : 'products'}:`, err?.message || err);
+      console.warn('[Supabase] Exception fetching products from products table:', err?.message || err);
     }
   }
 
@@ -294,9 +293,8 @@ export async function getProductsFromDb(publicOnly: boolean = true): Promise<any
 export async function getProductBySlugFromDb(slugOrId: string, publicOnly: boolean = true): Promise<any | null> {
   if (supabase) {
     try {
-      const table = publicOnly ? 'public_products' : 'products';
       const { data, error } = await supabase
-        .from(table)
+        .from('products')
         .select('*')
         .or(`slug.eq.${slugOrId},id.eq.${slugOrId}`)
         .maybeSingle();
