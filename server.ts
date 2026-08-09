@@ -1,8 +1,6 @@
 import 'dotenv/config';
 import express from 'express';
 import path from 'path';
-import crypto from 'crypto';
-import Razorpay from 'razorpay';
 import { createServer as createViteServer } from 'vite';
 import {
   seedInitialDataIfNeeded,
@@ -15,26 +13,15 @@ import {
   getOrdersFromDb,
   getOrderByIdOrNumberFromDb,
   updateOrderStatusInDb,
-  updateOrderPaymentStatusInDb,
+  updateOrderAdminDetailsInDb,
+  getStoreSettingsFromDb,
+  updateStoreSettingsInDb,
 } from './src/lib/supabaseServer';
 import { Order } from './src/types';
 import {
   sendWhatsAppOrderNotification,
   sendWhatsAppTestNotification,
 } from './src/lib/whatsappServer';
-
-
-function getRazorpayInstance(): Razorpay | null {
-  const keyId = process.env.RAZORPAY_KEY_ID;
-  const keySecret = process.env.RAZORPAY_KEY_SECRET;
-  if (keyId && keySecret) {
-    return new Razorpay({
-      key_id: keyId,
-      key_secret: keySecret,
-    });
-  }
-  return null;
-}
 
 async function startServer() {
   const app = express();
@@ -83,185 +70,23 @@ async function startServer() {
   });
 
   /**
-   * Razorpay Payment Integration Endpoints
+   * Store Settings Endpoints
    */
-
-  // 1. Create Razorpay Order (Server-Side)
-  app.post('/api/payments/create-razorpay-order', async (req, res) => {
+  app.get('/api/settings', async (req, res) => {
     try {
-      const { amount, currency = 'INR', receipt, notes } = req.body;
-      if (!amount || Number(amount) <= 0) {
-        return res.status(400).json({ error: 'Valid payment amount is required' });
-      }
-
-      const amountInPaise = Math.round(Number(amount) * 100);
-      const razorpay = getRazorpayInstance();
-
-      if (razorpay) {
-        const razorpayOrder = await razorpay.orders.create({
-          amount: amountInPaise,
-          currency: currency || 'INR',
-          receipt: receipt || `ord_${Date.now()}`,
-          notes: notes || {},
-        });
-        return res.json({
-          success: true,
-          razorpay_order_id: razorpayOrder.id,
-          amount: razorpayOrder.amount,
-          currency: razorpayOrder.currency,
-          key_id: process.env.RAZORPAY_KEY_ID,
-        });
-      } else {
-        // Test Mode Fallback if RAZORPAY_KEY_ID / SECRET are not configured yet
-        const mockOrderId = `order_test_${Date.now()}`;
-        return res.json({
-          success: true,
-          razorpay_order_id: mockOrderId,
-          amount: amountInPaise,
-          currency: currency || 'INR',
-          key_id: process.env.RAZORPAY_KEY_ID || 'rzp_test_piko_demo',
-          is_mock: true,
-        });
-      }
+      const settings = await getStoreSettingsFromDb();
+      res.json(settings);
     } catch (err: any) {
-      console.error('[Razorpay] Order creation error:', err);
-      res.status(500).json({ error: 'Failed to create Razorpay order', details: err?.message });
+      res.status(500).json({ error: 'Failed to fetch store settings', details: err?.message });
     }
   });
 
-  // 2. Verify Razorpay Payment Signature (Server-Side)
-  app.post('/api/payments/verify-razorpay-signature', async (req, res) => {
+  app.put('/api/admin/settings', requireAdmin, async (req, res) => {
     try {
-      const { razorpay_order_id, razorpay_payment_id, razorpay_signature, order } = req.body;
-
-      if (!razorpay_order_id || !razorpay_payment_id || !order) {
-        return res.status(400).json({ error: 'Missing payment or order parameters' });
-      }
-
-      const keySecret = process.env.RAZORPAY_KEY_SECRET;
-      let isSignatureValid = false;
-
-      if (keySecret) {
-        const body = `${razorpay_order_id}|${razorpay_payment_id}`;
-        const expectedSignature = crypto
-          .createHmac('sha256', keySecret)
-          .update(body.toString())
-          .digest('hex');
-
-        isSignatureValid = expectedSignature === razorpay_signature;
-      } else {
-        // In Test Mode without key secret set, accept test transactions safely
-        isSignatureValid = true;
-      }
-
-      if (!isSignatureValid) {
-        console.warn('[Razorpay] Invalid signature verification attempt for order:', razorpay_order_id);
-        return res.status(400).json({ error: 'Invalid payment signature. Verification failed.' });
-      }
-
-      // COD strictly disabled check
-      if (order.payment_method === 'cod') {
-        return res.status(400).json({ error: 'Cash on Delivery (COD) is disabled.' });
-      }
-
-      // Prepare complete order marked as PAID
-      const now = new Date().toISOString();
-      const orderToSave: Order = {
-        ...order,
-        payment_method: order.payment_method || 'razorpay',
-        payment_status: 'paid',
-        order_status: 'processing',
-        razorpay_order_id,
-        razorpay_payment_id,
-        razorpay_signature: razorpay_signature || 'verified_test_sig',
-        created_at: order.created_at || now,
-        updated_at: now,
-      };
-
-      // Save/Upsert order in Supabase
-      const savedOrder = await createOrderInDb(orderToSave);
-
-      // Explicitly update payment status to paid with razorpay details
-      const confirmedOrder = await updateOrderPaymentStatusInDb(savedOrder.id, 'paid', {
-        razorpay_order_id,
-        razorpay_payment_id,
-        razorpay_signature: razorpay_signature || 'verified_test_sig',
-      });
-
-      const finalOrder = confirmedOrder || savedOrder;
-
-      // Trigger WhatsApp notification asynchronously (will log if credentials missing, never rolls back order)
-      sendWhatsAppOrderNotification(finalOrder).catch((waErr) => {
-        console.error('[WhatsApp] Verification notification error:', waErr);
-      });
-
-      res.json({
-        success: true,
-        message: 'Payment verified successfully and order marked as paid.',
-        order: finalOrder,
-      });
+      const updated = await updateStoreSettingsInDb(req.body);
+      res.json(updated);
     } catch (err: any) {
-      console.error('[Razorpay] Signature verification error:', err);
-      res.status(500).json({ error: 'Failed to verify payment', details: err?.message });
-    }
-  });
-
-  // 3. Razorpay Webhook Endpoint
-  app.post('/api/payments/razorpay-webhook', async (req: any, res) => {
-    try {
-      const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
-      const signature = req.headers['x-razorpay-signature'];
-
-      if (webhookSecret) {
-        if (!signature) {
-          return res.status(400).json({ error: 'Missing x-razorpay-signature header' });
-        }
-        const rawBody = req.rawBody || JSON.stringify(req.body);
-        const expectedSignature = crypto
-          .createHmac('sha256', webhookSecret)
-          .update(rawBody)
-          .digest('hex');
-
-        if (expectedSignature !== signature) {
-          console.warn('[Razorpay Webhook] Invalid webhook signature');
-          return res.status(400).json({ error: 'Invalid webhook signature' });
-        }
-      }
-
-      const event = req.body?.event;
-      const payload = req.body?.payload;
-
-      console.log(`[Razorpay Webhook] Received webhook event: ${event}`);
-
-      if (event === 'order.paid' || event === 'payment.captured') {
-        const paymentEntity = payload?.payment?.entity;
-        const orderEntity = payload?.order?.entity;
-
-        const razorpayOrderId = paymentEntity?.order_id || orderEntity?.id;
-        const razorpayPaymentId = paymentEntity?.id;
-        const receipt = orderEntity?.receipt || paymentEntity?.notes?.receipt || paymentEntity?.notes?.order_number;
-
-        if (razorpayOrderId || receipt) {
-          const identifier = receipt || razorpayOrderId;
-          const updated = await updateOrderPaymentStatusInDb(identifier, 'paid', {
-            razorpay_order_id: razorpayOrderId,
-            razorpay_payment_id: razorpayPaymentId,
-          });
-
-          if (updated) {
-            console.log(`[Razorpay Webhook] Order ${updated.order_number} (${updated.id}) marked as PAID`);
-            // Trigger WhatsApp notification on webhook processing
-            sendWhatsAppOrderNotification(updated).catch((waErr) => {
-              console.error('[WhatsApp Webhook] Notification error:', waErr);
-            });
-          }
-        }
-      }
-
-      res.json({ status: 'ok', received: true });
-    } catch (err: any) {
-      console.error('[Razorpay Webhook] Error processing webhook:', err);
-      res.status(500).json({ error: 'Webhook handler error', details: err?.message });
+      res.status(500).json({ error: 'Failed to update store settings', details: err?.message });
     }
   });
 
@@ -293,6 +118,29 @@ async function startServer() {
   /**
    * Phase 1 Express APIs
    */
+
+  // GET /api/settings (Public store settings including UPI details)
+  app.get('/api/settings', async (req, res) => {
+    try {
+      const settings = await getStoreSettingsFromDb();
+      res.json(settings);
+    } catch (err: any) {
+      res.status(500).json({ error: 'Failed to fetch settings', details: err?.message });
+    }
+  });
+
+  // PUT & POST /api/admin/settings (Protected admin update store settings)
+  const handleUpdateSettings = async (req: express.Request, res: express.Response) => {
+    try {
+      const updated = await updateStoreSettingsInDb(req.body);
+      res.json(updated);
+    } catch (err: any) {
+      res.status(500).json({ error: 'Failed to update store settings', details: err?.message });
+    }
+  };
+
+  app.put('/api/admin/settings', requireAdmin, handleUpdateSettings);
+  app.post('/api/admin/settings', requireAdmin, handleUpdateSettings);
 
   // GET /api/categories
   app.get('/api/categories', async (req, res) => {
@@ -334,13 +182,33 @@ async function startServer() {
   app.post('/api/orders', async (req, res) => {
     try {
       const newOrder = req.body;
-      if (!newOrder || !newOrder.items || !newOrder.customer_email) {
+      if (!newOrder || !newOrder.items || (!newOrder.customer_phone && !newOrder.customer_email)) {
         return res.status(400).json({ error: 'Invalid order data' });
       }
       if (newOrder.payment_method === 'cod') {
-        return res.status(400).json({ error: 'Cash on Delivery (COD) is currently disabled.' });
+        return res.status(400).json({ error: 'Cash on Delivery (COD) is disabled.' });
       }
-      const saved = await createOrderInDb(newOrder);
+
+      // Enforce UPI payment & pending_verification status with generated order ID and number
+      const now = new Date().toISOString();
+      const orderToSave: Order = {
+        id: newOrder.id || `ord_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        order_number: newOrder.order_number || `PK-${Math.floor(100000 + Math.random() * 900000)}`,
+        created_at: newOrder.created_at || now,
+        updated_at: newOrder.updated_at || now,
+        ...newOrder,
+        payment_method: 'upi',
+        payment_status: 'pending_verification',
+        order_status: newOrder.order_status || 'pending_verification',
+      };
+
+      const saved = await createOrderInDb(orderToSave);
+
+      // Trigger WhatsApp order notification asynchronously
+      sendWhatsAppOrderNotification(saved).catch((waErr) => {
+        console.warn('[WhatsApp] Order notification notice:', waErr);
+      });
+
       res.status(201).json(saved);
     } catch (err: any) {
       res.status(500).json({ error: 'Failed to create order', details: err?.message });
@@ -405,8 +273,16 @@ async function startServer() {
   app.patch('/api/admin/orders/:id/status', requireAdmin, async (req, res) => {
     try {
       const { id } = req.params;
-      const { status, notes } = req.body;
-      const updated = await updateOrderStatusInDb(id, status, notes);
+      const { status, payment_status, courier_name, tracking_number, notes } = req.body;
+
+      const updated = await updateOrderAdminDetailsInDb(id, {
+        order_status: status,
+        payment_status,
+        courier_name,
+        tracking_number,
+        notes,
+      });
+
       res.json(updated);
     } catch (err: any) {
       res.status(500).json({ error: 'Failed to update order status', details: err?.message });

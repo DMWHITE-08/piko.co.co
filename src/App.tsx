@@ -21,7 +21,7 @@ import {
   deleteAdminProductApi,
   updateAdminOrderStatusApi,
 } from './lib/api';
-import { CartItem, Category, Order, OrderStatus, Product } from './types';
+import { CartItem, Category, Order, OrderStatus, PaymentStatus, Product } from './types';
 import { INITIAL_PRODUCTS } from './data/initialData';
 import { SiteHeader } from './components/SiteHeader';
 import { SiteFooter } from './components/SiteFooter';
@@ -233,14 +233,57 @@ export default function App() {
     showToast('Logged out of Admin');
   };
 
-  const handleUpdateOrderStatus = async (orderId: string, status: OrderStatus, notes?: string) => {
-    const updated = updateOrderStatus(orderId, status, notes);
-    setOrders(updated);
+  const handleUpdateOrderStatus = async (
+    orderId: string,
+    detailsOrStatus: OrderStatus | {
+      status?: OrderStatus;
+      payment_status?: PaymentStatus;
+      courier_name?: string;
+      tracking_number?: string;
+      notes?: string;
+    },
+    legacyNotes?: string
+  ) => {
+    let status: OrderStatus | undefined;
+    let payment_status: PaymentStatus | undefined;
+    let courier_name: string | undefined;
+    let tracking_number: string | undefined;
+    let notes: string | undefined;
 
-    // Update via Express API
-    await updateAdminOrderStatusApi(orderId, status, 'piko_admin_session_valid', notes);
+    if (typeof detailsOrStatus === 'string') {
+      status = detailsOrStatus;
+      notes = legacyNotes;
+    } else {
+      status = detailsOrStatus.status;
+      payment_status = detailsOrStatus.payment_status;
+      courier_name = detailsOrStatus.courier_name;
+      tracking_number = detailsOrStatus.tracking_number;
+      notes = detailsOrStatus.notes;
+    }
 
-    showToast(`Updated status to ${status.replace(/_/g, ' ')}`);
+    // Local state update
+    setOrders((prev) =>
+      prev.map((ord) => {
+        if (ord.id !== orderId) return ord;
+        return {
+          ...ord,
+          ...(status ? { order_status: status } : {}),
+          ...(payment_status ? { payment_status } : {}),
+          ...(courier_name !== undefined ? { courier_name } : {}),
+          ...(tracking_number !== undefined ? { tracking_number } : {}),
+          updated_at: new Date().toISOString(),
+        };
+      })
+    );
+
+    // Call API
+    await updateAdminOrderStatusApi(
+      orderId,
+      { status, payment_status, courier_name, tracking_number, notes },
+      'piko_admin_session_valid'
+    );
+
+    showToast('Order details updated');
   };
 
   const handleAddProduct = async (newProd: Product) => {
@@ -397,6 +440,7 @@ export default function App() {
             onGenerateDemoOrder={handleGenerateDemoOrder}
             onLogoutAdmin={handleLogoutAdmin}
             onBackToShop={() => setActiveView('shop')}
+            onShowToast={showToast}
           />
         ) : activeView === 'track' ? (
           <TrackOrderView

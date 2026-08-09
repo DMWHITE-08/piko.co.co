@@ -1,5 +1,53 @@
-import { Category, Order, Product } from '../types';
+import { Category, Order, OrderStatus, PaymentStatus, Product, StoreSettings } from '../types';
 import { INITIAL_CATEGORIES, INITIAL_PRODUCTS } from '../data/initialData';
+
+export const DEFAULT_SETTINGS: StoreSettings = {
+  upi_id: 'piko@upi',
+  upi_qr_url: '',
+  store_name: "PIKO's Little Treasures",
+  shipping_fee: 49,
+  free_shipping_threshold: 499,
+};
+
+/**
+ * Fetch Store Settings from Express API (/api/settings)
+ */
+export async function fetchStoreSettings(): Promise<StoreSettings> {
+  try {
+    const res = await fetch('/api/settings');
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.upi_id) {
+        return data;
+      }
+    }
+  } catch (err) {
+    console.warn('[API] Error fetching store settings:', err);
+  }
+  return DEFAULT_SETTINGS;
+}
+
+/**
+ * Update Store Settings via Express API (/api/admin/settings)
+ */
+export async function updateStoreSettingsApi(settings: Partial<StoreSettings>, token: string): Promise<StoreSettings> {
+  try {
+    const res = await fetch('/api/admin/settings', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(settings),
+    });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (err) {
+    console.warn('[API] Error updating store settings:', err);
+  }
+  return DEFAULT_SETTINGS;
+}
 
 /**
  * Fetch categories from Express API (/api/categories)
@@ -171,13 +219,18 @@ export async function fetchAdminOrdersApi(token: string): Promise<Order[]> {
 }
 
 /**
- * Update Order Status via Express API (/api/admin/orders/:id/status)
+ * Update Order Details (status, payment_status, courier, tracking) via Express API (/api/admin/orders/:id/status)
  */
 export async function updateAdminOrderStatusApi(
   orderId: string,
-  status: Order['order_status'],
-  token: string,
-  notes?: string
+  details: {
+    status?: OrderStatus;
+    payment_status?: PaymentStatus;
+    courier_name?: string;
+    tracking_number?: string;
+    notes?: string;
+  },
+  token: string
 ): Promise<Order | null> {
   try {
     const res = await fetch(`/api/admin/orders/${encodeURIComponent(orderId)}/status`, {
@@ -186,7 +239,7 @@ export async function updateAdminOrderStatusApi(
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({ status, notes }),
+      body: JSON.stringify(details),
     });
     if (res.ok) {
       return await res.json();

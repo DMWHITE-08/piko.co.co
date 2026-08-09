@@ -44,9 +44,17 @@ export interface OrderItem {
   selected_variant?: string;
 }
 
-export type OrderStatus = 'processing' | 'shipped' | 'out_for_delivery' | 'delivered' | 'cancelled';
-export type PaymentMethod = 'upi' | 'razorpay' | 'card' | 'cod';
-export type PaymentStatus = 'paid' | 'pending' | 'failed' | 'refunded';
+export type OrderStatus = 'pending_verification' | 'payment_verified' | 'processing' | 'shipped' | 'out_for_delivery' | 'delivered' | 'cancelled';
+export type PaymentMethod = 'upi';
+export type PaymentStatus = 'pending_verification' | 'paid' | 'unverified' | 'failed' | 'pending' | 'refunded';
+
+export interface StoreSettings {
+  upi_id: string;
+  upi_qr_url: string;
+  store_name: string;
+  shipping_fee: number;
+  free_shipping_threshold: number;
+}
 
 export interface TrackingEvent {
   status: OrderStatus;

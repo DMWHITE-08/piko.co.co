@@ -1,6 +1,94 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { INITIAL_CATEGORIES, INITIAL_PRODUCTS, INITIAL_ORDERS } from '../data/initialData';
-import { Category, Product, Order, PaymentStatus } from '../types';
+import { Category, Product, Order, PaymentStatus, StoreSettings } from '../types';
+
+export let inMemoryStoreSettings: StoreSettings = {
+  upi_id: 'piko@upi',
+  upi_qr_url: '',
+  store_name: "PIKO's Little Treasures",
+  shipping_fee: 49,
+  free_shipping_threshold: 499,
+};
+
+/**
+ * Get Store Settings from DB or memory
+ */
+export async function getStoreSettingsFromDb(): Promise<StoreSettings> {
+  if (supabase) {
+    try {
+      // 1. Try store_settings table first
+      const { data, error } = await supabase.from('store_settings').select('*').limit(1).single();
+      if (!error && data) {
+        return {
+          upi_id: data.upi_id || inMemoryStoreSettings.upi_id,
+          upi_qr_url: data.upi_qr_url || inMemoryStoreSettings.upi_qr_url,
+          store_name: data.store_name || inMemoryStoreSettings.store_name,
+          shipping_fee: typeof data.shipping_fee === 'number' ? data.shipping_fee : inMemoryStoreSettings.shipping_fee,
+          free_shipping_threshold: typeof data.free_shipping_threshold === 'number' ? data.free_shipping_threshold : inMemoryStoreSettings.free_shipping_threshold,
+        };
+      }
+
+      // 2. Fallback to _sys_store_settings in categories table
+      const { data: sysData, error: sysErr } = await supabase.from('categories').select('*').eq('id', '_sys_store_settings').single();
+      if (!sysErr && sysData && sysData.description) {
+        try {
+          const parsed = JSON.parse(sysData.description);
+          if (parsed && typeof parsed === 'object') {
+            inMemoryStoreSettings = {
+              upi_id: parsed.upi_id || inMemoryStoreSettings.upi_id,
+              upi_qr_url: parsed.upi_qr_url || inMemoryStoreSettings.upi_qr_url,
+              store_name: parsed.store_name || inMemoryStoreSettings.store_name,
+              shipping_fee: typeof parsed.shipping_fee === 'number' ? parsed.shipping_fee : inMemoryStoreSettings.shipping_fee,
+              free_shipping_threshold: typeof parsed.free_shipping_threshold === 'number' ? parsed.free_shipping_threshold : inMemoryStoreSettings.free_shipping_threshold,
+            };
+            return inMemoryStoreSettings;
+          }
+        } catch (e) {
+          // ignore parse error
+        }
+      }
+    } catch (err) {
+      console.warn('[Supabase] Error fetching store settings:', err);
+    }
+  }
+  return inMemoryStoreSettings;
+}
+
+/**
+ * Update Store Settings in DB and memory
+ */
+export async function updateStoreSettingsInDb(settings: Partial<StoreSettings>): Promise<StoreSettings> {
+  inMemoryStoreSettings = {
+    ...inMemoryStoreSettings,
+    ...settings,
+  };
+
+  if (supabase) {
+    try {
+      // Upsert to store_settings table if present
+      await supabase.from('store_settings').upsert({ id: 'main_settings', ...inMemoryStoreSettings }, { onConflict: 'id' });
+    } catch (err) {
+      // ignore
+    }
+
+    try {
+      // Always persist to categories table as system settings backup
+      await supabase.from('categories').upsert(
+        {
+          id: '_sys_store_settings',
+          name: 'System Store Settings',
+          slug: '_sys_store_settings',
+          description: JSON.stringify(inMemoryStoreSettings),
+        },
+        { onConflict: 'id' }
+      );
+    } catch (err) {
+      console.warn('[Supabase] Error persisting store settings backup:', err);
+    }
+  }
+
+  return inMemoryStoreSettings;
+}
 
 function getEffectiveSupabaseUrl(): string | undefined {
   let url = process.env.SUPABASE_URL;
@@ -97,13 +185,13 @@ export async function getCategoriesFromDb(): Promise<Category[]> {
     try {
       const { data, error } = await supabase.from('categories').select('*').order('name', { ascending: true });
       if (!error && data && data.length > 0) {
-        return data as Category[];
+        return (data as Category[]).filter((cat) => !cat.id.startsWith('_sys_'));
       }
     } catch (err) {
       console.warn('[Supabase] Error fetching categories:', err);
     }
   }
-  return inMemoryCategories;
+  return inMemoryCategories.filter((cat) => !cat.id.startsWith('_sys_'));
 }
 
 /**
@@ -350,6 +438,92 @@ export async function getOrderByIdOrNumberFromDb(idOrNumber: string): Promise<Or
 
   const found = inMemoryOrders.find((o) => o.id === idOrNumber || o.order_number === idOrNumber);
   return found || null;
+}
+
+/**
+ * Update Order Admin Details (status, payment_status, courier, tracking_number)
+ */
+export async function updateOrderAdminDetailsInDb(
+  orderId: string,
+  details: {
+    order_status?: Order['order_status'];
+    payment_status?: PaymentStatus;
+    courier_name?: string;
+    tracking_number?: string;
+    notes?: string;
+  }
+): Promise<Order | null> {
+  const current = await getOrderByIdOrNumberFromDb(orderId);
+  if (!current) return null;
+
+  const now = new Date().toISOString();
+  let updatedTracking = current.tracking_events || [];
+
+  if (details.order_status && details.order_status !== current.order_status) {
+    const newEvent = {
+      status: details.order_status,
+      description: details.notes || `Order status updated to ${details.order_status.replace(/_/g, ' ')}`,
+      occurred_at: now,
+    };
+    updatedTracking = [newEvent, ...updatedTracking];
+  } else if (details.payment_status && details.payment_status !== current.payment_status) {
+    const newEvent = {
+      status: current.order_status,
+      description: `Payment status updated to ${details.payment_status.replace(/_/g, ' ')}`,
+      occurred_at: now,
+    };
+    updatedTracking = [newEvent, ...updatedTracking];
+  } else if (details.tracking_number && details.tracking_number !== current.tracking_number) {
+    const newEvent = {
+      status: current.order_status,
+      description: `Shipped via ${details.courier_name || current.courier_name || 'Courier'} (Tracking: ${details.tracking_number})`,
+      occurred_at: now,
+    };
+    updatedTracking = [newEvent, ...updatedTracking];
+  }
+
+  const updatedObj: Order = {
+    ...current,
+    order_status: details.order_status || current.order_status,
+    payment_status: details.payment_status || current.payment_status,
+    courier_name: details.courier_name !== undefined ? details.courier_name : current.courier_name,
+    tracking_number: details.tracking_number !== undefined ? details.tracking_number : current.tracking_number,
+    tracking_events: updatedTracking,
+    updated_at: now,
+  };
+
+  const memIdx = inMemoryOrders.findIndex((o) => o.id === current.id);
+  if (memIdx >= 0) {
+    inMemoryOrders[memIdx] = updatedObj;
+  }
+
+  if (supabase) {
+    try {
+      const updateData: any = {
+        updated_at: now,
+        tracking_events: updatedTracking,
+      };
+      if (details.order_status) updateData.order_status = details.order_status;
+      if (details.payment_status) updateData.payment_status = details.payment_status;
+      if (details.courier_name !== undefined) updateData.courier_name = details.courier_name;
+      if (details.tracking_number !== undefined) updateData.tracking_number = details.tracking_number;
+
+      const { data, error } = await supabase
+        .from('orders')
+        .update(updateData)
+        .eq('id', current.id)
+        .select()
+        .single();
+
+      if (!error && data) {
+        return { ...data, items: current.items } as Order;
+      }
+    } catch (err) {
+      console.warn('[Supabase] Error updating order details:', err);
+    }
+  }
+
+  return updatedObj;
 }
 
 /**

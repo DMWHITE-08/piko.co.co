@@ -8,19 +8,29 @@ import {
   Sparkles,
   ShieldCheck,
   ArrowLeft,
+  Settings,
 } from 'lucide-react';
-import { Category, Order, OrderStatus, Product } from '../../types';
+import { Category, Order, OrderStatus, PaymentStatus, Product } from '../../types';
 import { AdminOverview } from './AdminOverview';
 import { AdminOrdersTable } from './AdminOrdersTable';
 import { AdminProductsManager } from './AdminProductsManager';
 import { AdminAnalytics } from './AdminAnalytics';
-import { formatINR } from '../../lib/utils';
+import { AdminSettingsTab } from './AdminSettingsTab';
 
 interface AdminDashboardProps {
   orders: Order[];
   products: Product[];
   categories: Category[];
-  onUpdateOrderStatus: (orderId: string, status: OrderStatus, notes?: string) => void;
+  onUpdateOrderStatus: (
+    orderId: string,
+    details: {
+      status?: OrderStatus;
+      payment_status?: PaymentStatus;
+      courier_name?: string;
+      tracking_number?: string;
+      notes?: string;
+    }
+  ) => void;
   onAddProduct: (product: Product) => void;
   onUpdateProduct: (product: Product) => void;
   onDeleteProduct: (productId: string) => void;
@@ -30,6 +40,7 @@ interface AdminDashboardProps {
   onGenerateDemoOrder: () => void;
   onLogoutAdmin: () => void;
   onBackToShop: () => void;
+  onShowToast?: (msg: string) => void;
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
@@ -46,10 +57,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onGenerateDemoOrder,
   onLogoutAdmin,
   onBackToShop,
+  onShowToast = () => {},
 }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'products' | 'analytics'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'products' | 'analytics' | 'settings'>('overview');
 
-  const pendingCount = orders.filter((o) => o.order_status === 'processing' || o.order_status === 'shipped').length;
+  const unverifiedCount = orders.filter((o) => o.payment_status === 'pending_verification' || o.order_status === 'pending_verification').length;
 
   return (
     <div className="min-h-screen bg-background py-8 piko-fade-up">
@@ -98,9 +110,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         <div className="flex items-center gap-2 border-b border-border/80 pb-2 overflow-x-auto no-scrollbar">
           {[
             { id: 'overview', label: 'Overview', icon: LayoutDashboard },
-            { id: 'orders', label: `Orders (${orders.length})`, icon: ShoppingCart, badge: pendingCount },
+            { id: 'orders', label: `Orders (${orders.length})`, icon: ShoppingCart, badge: unverifiedCount },
             { id: 'products', label: `Products (${products.length})`, icon: Package },
             { id: 'analytics', label: 'Sales Charts', icon: BarChart2 },
+            { id: 'settings', label: 'Store & UPI Settings', icon: Settings },
           ].map((t) => {
             const Icon = t.icon;
             const isActive = activeTab === t.id;
@@ -160,6 +173,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         )}
 
         {activeTab === 'analytics' && <AdminAnalytics orders={orders} />}
+
+        {activeTab === 'settings' && <AdminSettingsTab onShowToast={onShowToast} />}
       </div>
     </div>
   );
