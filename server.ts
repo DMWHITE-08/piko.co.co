@@ -9,6 +9,8 @@ import {
   getProductBySlugFromDb,
   saveProductToDb,
   deleteProductFromDb,
+  clearAllProductsInDb,
+  restoreSampleProductsInDb,
   createOrderInDb,
   getOrdersFromDb,
   getOrderByIdOrNumberFromDb,
@@ -34,6 +36,14 @@ async function startServer() {
       },
     })
   );
+
+  // Disable caching for dynamic API responses
+  app.use('/api', (req, res, next) => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    next();
+  });
 
   // Attempt to seed initial data to Supabase if connected
   seedInitialDataIfNeeded().catch((err) => console.warn('Data seeding notice:', err));
@@ -258,6 +268,24 @@ async function startServer() {
       res.json({ success: true, id });
     } catch (err: any) {
       res.status(500).json({ error: 'Failed to delete product', details: err?.message });
+    }
+  });
+
+  app.delete('/api/admin/products', requireAdmin, async (req, res) => {
+    try {
+      await clearAllProductsInDb();
+      res.json({ success: true, message: 'All products cleared from catalog' });
+    } catch (err: any) {
+      res.status(500).json({ error: 'Failed to clear products catalog', details: err?.message });
+    }
+  });
+
+  app.post('/api/admin/products/restore', requireAdmin, async (req, res) => {
+    try {
+      const restored = await restoreSampleProductsInDb();
+      res.json(restored);
+    } catch (err: any) {
+      res.status(500).json({ error: 'Failed to restore sample products', details: err?.message });
     }
   });
 

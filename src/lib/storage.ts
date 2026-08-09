@@ -9,75 +9,37 @@ const STORAGE_KEYS = {
   ADMIN_AUTH: 'piko_admin_authenticated_v1',
 };
 
-// Initialize Storage with sample data if empty
+// Initialize Storage
 export function initStorage() {
   if (typeof window === 'undefined') return;
 
-  if (!localStorage.getItem(STORAGE_KEYS.PRODUCTS)) {
-    localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(INITIAL_PRODUCTS));
-  }
-  if (!localStorage.getItem(STORAGE_KEYS.CATEGORIES)) {
-    localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(INITIAL_CATEGORIES));
-  }
+  // Clear stale products and categories from localStorage
+  localStorage.removeItem(STORAGE_KEYS.PRODUCTS);
+  localStorage.removeItem(STORAGE_KEYS.CATEGORIES);
+
   if (!localStorage.getItem(STORAGE_KEYS.ORDERS)) {
     localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(INITIAL_ORDERS));
   }
 }
 
-// Products
+// Products (Supabase is single source of truth)
 export function getStoredProducts(): Product[] {
-  if (typeof window === 'undefined') return INITIAL_PRODUCTS;
-  const raw = localStorage.getItem(STORAGE_KEYS.PRODUCTS);
-  if (!raw) {
-    localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(INITIAL_PRODUCTS));
-    return INITIAL_PRODUCTS;
-  }
-  try {
-    const stored: Product[] = JSON.parse(raw);
-    const existingIds = new Set(stored.map((p) => p.id));
-    const missing = INITIAL_PRODUCTS.filter((p) => !existingIds.has(p.id));
-    if (missing.length > 0) {
-      const merged = [...stored, ...missing];
-      localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(merged));
-      return merged;
-    }
-    return stored;
-  } catch {
-    return INITIAL_PRODUCTS;
-  }
+  return [];
 }
 
-export function saveProducts(products: Product[]) {
+export function saveProducts(_products: Product[]) {
   if (typeof window === 'undefined') return;
-  localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
+  localStorage.removeItem(STORAGE_KEYS.PRODUCTS);
 }
 
 // Categories
 export function getStoredCategories(): Category[] {
-  if (typeof window === 'undefined') return INITIAL_CATEGORIES;
-  const raw = localStorage.getItem(STORAGE_KEYS.CATEGORIES);
-  if (!raw) {
-    localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(INITIAL_CATEGORIES));
-    return INITIAL_CATEGORIES;
-  }
-  try {
-    const stored: Category[] = JSON.parse(raw);
-    const existingIds = new Set(stored.map((c) => c.id));
-    const missing = INITIAL_CATEGORIES.filter((c) => !existingIds.has(c.id));
-    if (missing.length > 0) {
-      const merged = [...stored, ...missing];
-      localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(merged));
-      return merged;
-    }
-    return stored;
-  } catch {
-    return INITIAL_CATEGORIES;
-  }
+  return INITIAL_CATEGORIES;
 }
 
-export function saveCategories(categories: Category[]) {
+export function saveCategories(_categories: Category[]) {
   if (typeof window === 'undefined') return;
-  localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(categories));
+  localStorage.removeItem(STORAGE_KEYS.CATEGORIES);
 }
 
 // Orders

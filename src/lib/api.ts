@@ -51,11 +51,10 @@ export async function updateStoreSettingsApi(settings: Partial<StoreSettings>, t
 
 /**
  * Fetch categories from Express API (/api/categories)
- * Falls back to INITIAL_CATEGORIES if network error occurs.
  */
 export async function fetchCategories(): Promise<Category[]> {
   try {
-    const res = await fetch('/api/categories');
+    const res = await fetch('/api/categories?_t=' + Date.now(), { cache: 'no-store' });
     if (res.ok) {
       const data = await res.json();
       if (Array.isArray(data) && data.length > 0) {
@@ -71,30 +70,29 @@ export async function fetchCategories(): Promise<Category[]> {
 /**
  * Fetch products from Express API (/api/products)
  * Never contains source_price or supplier info (Rule 9).
- * Falls back to INITIAL_PRODUCTS if network error occurs.
+ * Returns real database state (including [] when all products are deleted).
  */
 export async function fetchProducts(): Promise<Product[]> {
   try {
-    const res = await fetch('/api/products');
+    const res = await fetch('/api/products?_t=' + Date.now(), { cache: 'no-store' });
     if (res.ok) {
       const data = await res.json();
-      if (Array.isArray(data) && data.length > 0) {
+      if (Array.isArray(data)) {
         return data;
       }
     }
   } catch (err) {
     console.warn('[API] Error fetching products from /api/products:', err);
   }
-  return INITIAL_PRODUCTS;
+  return [];
 }
 
 /**
  * Fetch single product by slug from Express API (/api/products/:slug)
- * Falls back to INITIAL_PRODUCTS if network error occurs.
  */
 export async function fetchProductBySlug(slug: string): Promise<Product | null> {
   try {
-    const res = await fetch(`/api/products/${encodeURIComponent(slug)}`);
+    const res = await fetch(`/api/products/${encodeURIComponent(slug)}?_t=` + Date.now(), { cache: 'no-store' });
     if (res.ok) {
       const data = await res.json();
       if (data && data.id) {
@@ -104,8 +102,7 @@ export async function fetchProductBySlug(slug: string): Promise<Product | null> 
   } catch (err) {
     console.warn(`[API] Error fetching product ${slug} from /api/products/:slug:`, err);
   }
-  const fallback = INITIAL_PRODUCTS.find((p) => p.slug === slug || p.id === slug);
-  return fallback || null;
+  return null;
 }
 
 /**
@@ -149,14 +146,54 @@ export async function trackOrderApi(idOrNumber: string): Promise<Order | null> {
  */
 export async function fetchAdminProductsApi(token: string): Promise<Product[]> {
   try {
+    const res = await fetch('/api/admin/products?_t=' + Date.now(), {
+      cache: 'no-store',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        return data;
+      }
+    }
+  } catch (err) {
+    console.warn('[API] Error fetching admin products:', err);
+  }
+  return [];
+}
+
+/**
+ * Clear All Admin Products via Express API (/api/admin/products)
+ */
+export async function clearAdminProductsApi(token: string): Promise<boolean> {
+  try {
     const res = await fetch('/api/admin/products', {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) {
+      return true;
+    }
+  } catch (err) {
+    console.warn('[API] Error clearing admin products:', err);
+  }
+  return false;
+}
+
+/**
+ * Restore Sample Products via Express API (/api/admin/products/restore)
+ */
+export async function restoreAdminProductsApi(token: string): Promise<Product[]> {
+  try {
+    const res = await fetch('/api/admin/products/restore', {
+      method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
     });
     if (res.ok) {
       return await res.json();
     }
   } catch (err) {
-    console.warn('[API] Error fetching admin products:', err);
+    console.warn('[API] Error restoring sample products:', err);
   }
   return [];
 }

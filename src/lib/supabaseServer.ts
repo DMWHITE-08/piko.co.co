@@ -127,7 +127,7 @@ if (supabaseUrl && supabaseKey) {
 }
 
 let inMemoryCategories = [...INITIAL_CATEGORIES];
-let inMemoryProducts = [...INITIAL_PRODUCTS];
+let inMemoryProducts = supabase ? [] : [...INITIAL_PRODUCTS];
 let inMemoryOrders = [...INITIAL_ORDERS];
 
 /**
@@ -141,21 +141,48 @@ export function sanitizePublicProduct(product: any): Omit<Product, 'source_price
 }
 
 /**
- * Seed initial data to Supabase by upserting initialData
+ * Seed initial data to Supabase ONLY when database is genuinely empty / first time setup.
+ * Uses system init marker '_sys_init_seeded' so intentional admin deletions are NEVER lost.
  */
 export async function seedInitialDataIfNeeded() {
   if (!supabase) return;
 
   try {
-    console.log('[Supabase] Upserting INITIAL_CATEGORIES...');
+    // 1. Check if database was already initialized before
+    const { data: marker } = await supabase
+      .from('categories')
+      .select('id')
+      .eq('id', '_sys_init_seeded')
+      .maybeSingle();
+
+    if (marker) {
+      console.log('[Supabase] Database already initialized (_sys_init_seeded found). Skipping auto-seed.');
+      return;
+    }
+
+    // 2. Check if products table already has records
+    const { count, error: countErr } = await supabase
+      .from('products')
+      .select('*', { count: 'exact', head: true });
+
+    if (!countErr && count !== null && count > 0) {
+      console.log(`[Supabase] Database already contains ${count} products. Marking system as initialized.`);
+      await supabase.from('categories').upsert(
+        { id: '_sys_init_seeded', name: 'System Init Marker', slug: '_sys_init_seeded', description: 'true' },
+        { onConflict: 'id' }
+      );
+      return;
+    }
+
+    // 3. Database is genuinely empty first-time setup: seed initial data
+    console.log('[Supabase] Genuinely empty database detected. Seeding INITIAL_CATEGORIES, INITIAL_PRODUCTS, INITIAL_ORDERS...');
+
     const { error: catErr } = await supabase.from('categories').upsert(INITIAL_CATEGORIES, { onConflict: 'id' });
     if (catErr) console.warn('[Supabase] Categories seed warning:', catErr.message);
 
-    console.log('[Supabase] Upserting INITIAL_PRODUCTS...');
     const { error: prodErr } = await supabase.from('products').upsert(INITIAL_PRODUCTS, { onConflict: 'id' });
     if (prodErr) console.warn('[Supabase] Products seed warning:', prodErr.message);
 
-    console.log('[Supabase] Upserting INITIAL_ORDERS...');
     for (const ord of INITIAL_ORDERS) {
       const { items, ...orderHeader } = ord;
       const { error: ordErr } = await supabase.from('orders').upsert(orderHeader, { onConflict: 'id' });
@@ -171,7 +198,14 @@ export async function seedInitialDataIfNeeded() {
         if (itemErr) console.warn('[Supabase] Order items seed warning:', itemErr.message);
       }
     }
-    console.log('[Supabase] Initial data seeding complete.');
+
+    // Mark as initialized so subsequent restarts never re-seed
+    await supabase.from('categories').upsert(
+      { id: '_sys_init_seeded', name: 'System Init Marker', slug: '_sys_init_seeded', description: 'true' },
+      { onConflict: 'id' }
+    );
+
+    console.log('[Supabase] First-time initial data seeding complete.');
   } catch (err) {
     console.warn('[Supabase] Seeding error:', err);
   }
@@ -184,7 +218,7 @@ export async function getCategoriesFromDb(): Promise<Category[]> {
   if (supabase) {
     try {
       const { data, error } = await supabase.from('categories').select('*').order('name', { ascending: true });
-      if (!error && data && data.length > 0) {
+      if (!error && Array.isArray(data) && data.length > 0) {
         return (data as Category[]).filter((cat) => !cat.id.startsWith('_sys_'));
       }
     } catch (err) {
@@ -198,25 +232,20 @@ export async function getCategoriesFromDb(): Promise<Category[]> {
  * Get Products from Supabase or Fallback (returns raw or sanitized)
  */
 export async function getProductsFromDb(publicOnly: boolean = true): Promise<any[]> {
-  let products: Product[] = inMemoryProducts;
-
   if (supabase) {
     try {
       const tableName = publicOnly ? 'public_products' : 'products';
       const { data, error } = await supabase.from(tableName).select('*').order('created_at', { ascending: false });
-      if (!error && data && data.length > 0) {
-        products = data as Product[];
+      if (!error && Array.isArray(data)) {
+        inMemoryProducts = data as Product[];
+        return publicOnly ? inMemoryProducts.map(sanitizePublicProduct) : inMemoryProducts;
       }
     } catch (err) {
       console.warn('[Supabase] Error fetching products:', err);
     }
   }
 
-  if (publicOnly) {
-    return products.map(sanitizePublicProduct);
-  }
-
-  return products;
+  return publicOnly ? inMemoryProducts.map(sanitizePublicProduct) : inMemoryProducts;
 }
 
 /**
@@ -285,6 +314,39 @@ export async function deleteProductFromDb(productId: string): Promise<boolean> {
     }
   }
   return true;
+}
+
+/**
+ * Clear All Products from Supabase
+ */
+export async function clearAllProductsInDb(): Promise<boolean> {
+  inMemoryProducts = [];
+
+  if (supabase) {
+    try {
+      const { error } = await supabase.from('products').delete().neq('id', '___non_existent___');
+      if (error) console.warn('[Supabase] Error clearing products from DB:', error);
+    } catch (err) {
+      console.warn('[Supabase] Error clearing products from DB:', err);
+    }
+  }
+  return true;
+}
+
+/**
+ * Restore Default Sample Products to Supabase
+ */
+export async function restoreSampleProductsInDb(): Promise<Product[]> {
+  inMemoryProducts = [...INITIAL_PRODUCTS];
+
+  if (supabase) {
+    try {
+      await supabase.from('products').upsert(INITIAL_PRODUCTS, { onConflict: 'id' });
+    } catch (err) {
+      console.warn('[Supabase] Error restoring sample products to DB:', err);
+    }
+  }
+  return inMemoryProducts;
 }
 
 /**

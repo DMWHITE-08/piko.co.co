@@ -19,6 +19,8 @@ import {
   createOrderApi,
   saveAdminProductApi,
   deleteAdminProductApi,
+  clearAdminProductsApi,
+  restoreAdminProductsApi,
   updateAdminOrderStatusApi,
 } from './lib/api';
 import { CartItem, Category, Order, OrderStatus, PaymentStatus, Product } from './types';
@@ -89,22 +91,13 @@ export default function App() {
     const authStatus = isAdminAuthenticated();
     setIsAdmin(authStatus);
 
-    // Load products and categories from Express API (/api/products & /api/categories)
+    // Load products and categories directly from Express API / Supabase
     fetchProducts().then((prods) => {
-      if (prods && prods.length > 0) {
-        setProducts(prods);
-        saveProducts(prods);
-      } else {
-        setProducts(getStoredProducts());
-      }
+      setProducts(prods || []);
     });
 
     fetchCategories().then((cats) => {
-      if (cats && cats.length > 0) {
-        setCategories(cats);
-      } else {
-        setCategories(getStoredCategories());
-      }
+      setCategories(cats || []);
     });
 
     // Secret URL check: ?admin=1 or #admin
@@ -287,48 +280,58 @@ export default function App() {
   };
 
   const handleAddProduct = async (newProd: Product) => {
-    const updated = [newProd, ...products];
-    setProducts(updated);
-    saveProducts(updated);
-
-    // Persist via Express API
-    await saveAdminProductApi(newProd, 'piko_admin_session_valid');
-
-    showToast(`Added ${newProd.name} to store!`);
+    const saved = await saveAdminProductApi(newProd, 'piko_admin_session_valid');
+    if (saved) {
+      const fresh = await fetchProducts();
+      setProducts(fresh);
+      showToast(`Added ${saved.name} to store!`);
+    } else {
+      showToast('Failed to save product to database');
+    }
   };
 
   const handleUpdateProduct = async (updatedProd: Product) => {
-    const updated = products.map((p) => (p.id === updatedProd.id ? updatedProd : p));
-    setProducts(updated);
-    saveProducts(updated);
-
-    // Persist via Express API
-    await saveAdminProductApi(updatedProd, 'piko_admin_session_valid');
-
-    showToast(`Updated ${updatedProd.name}`);
+    const saved = await saveAdminProductApi(updatedProd, 'piko_admin_session_valid');
+    if (saved) {
+      const fresh = await fetchProducts();
+      setProducts(fresh);
+      showToast(`Updated ${updatedProd.name}`);
+    } else {
+      showToast('Failed to update product in database');
+    }
   };
 
   const handleDeleteProduct = async (productId: string) => {
-    const updated = products.filter((p) => p.id !== productId);
-    setProducts(updated);
-    saveProducts(updated);
-
-    // Delete via Express API
-    await deleteAdminProductApi(productId, 'piko_admin_session_valid');
-
-    showToast('Product removed');
+    const success = await deleteAdminProductApi(productId, 'piko_admin_session_valid');
+    if (success) {
+      const fresh = await fetchProducts();
+      setProducts(fresh);
+      showToast('Product removed permanently');
+    } else {
+      showToast('Failed to delete product from database');
+    }
   };
 
-  const handleClearAllProducts = () => {
-    setProducts([]);
-    saveProducts([]);
-    showToast('Catalog wiped clean! Add your own products now.');
+  const handleClearAllProducts = async () => {
+    const success = await clearAdminProductsApi('piko_admin_session_valid');
+    if (success) {
+      const fresh = await fetchProducts();
+      setProducts(fresh);
+      showToast('Catalog cleared from database!');
+    } else {
+      showToast('Failed to clear catalog');
+    }
   };
 
-  const handleRestoreSampleProducts = () => {
-    setProducts(INITIAL_PRODUCTS);
-    saveProducts(INITIAL_PRODUCTS);
-    showToast('Restored default sample products!');
+  const handleRestoreSampleProducts = async () => {
+    const restored = await restoreAdminProductsApi('piko_admin_session_valid');
+    if (restored) {
+      const fresh = await fetchProducts();
+      setProducts(fresh);
+      showToast('Restored default sample products to database!');
+    } else {
+      showToast('Failed to restore sample products');
+    }
   };
 
   const handleClearAllOrders = () => {
