@@ -33,7 +33,15 @@ export function getStoredProducts(): Product[] {
     return INITIAL_PRODUCTS;
   }
   try {
-    return JSON.parse(raw);
+    const stored: Product[] = JSON.parse(raw);
+    const existingIds = new Set(stored.map((p) => p.id));
+    const missing = INITIAL_PRODUCTS.filter((p) => !existingIds.has(p.id));
+    if (missing.length > 0) {
+      const merged = [...stored, ...missing];
+      localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(merged));
+      return merged;
+    }
+    return stored;
   } catch {
     return INITIAL_PRODUCTS;
   }
@@ -53,7 +61,15 @@ export function getStoredCategories(): Category[] {
     return INITIAL_CATEGORIES;
   }
   try {
-    return JSON.parse(raw);
+    const stored: Category[] = JSON.parse(raw);
+    const existingIds = new Set(stored.map((c) => c.id));
+    const missing = INITIAL_CATEGORIES.filter((c) => !existingIds.has(c.id));
+    if (missing.length > 0) {
+      const merged = [...stored, ...missing];
+      localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(merged));
+      return merged;
+    }
+    return stored;
   } catch {
     return INITIAL_CATEGORIES;
   }

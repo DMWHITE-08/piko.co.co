@@ -138,154 +138,177 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       : `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(upiPayUrl)}`;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-sm p-4 flex items-center justify-center piko-fade-up">
-      <div className="relative w-full max-w-xl rounded-3xl border border-border bg-card p-6 shadow-2xl transition-all">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/95 p-2 sm:p-4 md:p-6 flex items-start justify-center min-h-full py-4 sm:py-8 piko-fade-up">
+      <div className="relative my-auto w-full max-w-xl rounded-3xl border-2 border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-slate-900 dark:text-slate-100 p-4 sm:p-7 shadow-2xl transition-all max-h-[92vh] overflow-y-auto">
         <button
           onClick={onClose}
-          className="absolute right-4 top-4 z-10 grid size-9 place-items-center rounded-full bg-secondary text-foreground hover:bg-rose/10 hover:text-rose"
+          className="absolute right-3 top-3 z-10 grid size-9 place-items-center rounded-full bg-slate-200 dark:bg-zinc-800 text-foreground hover:bg-rose hover:text-white transition-colors"
         >
           <X className="size-5" />
         </button>
 
         {step === 'details' && (
-          <div>
+          <div className="pb-4">
             <div className="mb-5">
-              <span className="rounded-full bg-rose/10 px-3 py-1 text-xs font-bold text-rose">
-                Step 1 of 2: Shipping
+              <span className="inline-block rounded-full bg-rose px-3 py-1 text-xs font-extrabold text-white shadow-sm">
+                Step 1 of 2: Shipping Info
               </span>
-              <h2 className="mt-1 font-display text-2xl font-bold text-foreground">Delivery Details</h2>
-              <p className="text-xs text-muted-foreground">
-                Enter your shipping info to place your UPI order.
+              <h2 className="mt-2 font-display text-2xl font-bold text-foreground">Delivery Address</h2>
+              <p className="text-xs font-medium text-muted-foreground">
+                Please fill in your address details to complete your UPI order.
               </p>
             </div>
 
             {errorMsg && (
-              <div className="mb-4 rounded-xl bg-destructive/10 p-3 text-xs text-destructive font-medium">
+              <div className="mb-4 rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive font-bold">
                 {errorMsg}
               </div>
             )}
 
-            <form onSubmit={handleProceedToPayment} className="space-y-3.5">
-              <div className="grid gap-3 sm:grid-cols-2">
+            <form onSubmit={handleProceedToPayment} className="space-y-4">
+              <div className="grid gap-3.5 sm:grid-cols-2">
                 <div>
-                  <label className="text-[11px] font-bold text-foreground">Full Name *</label>
+                  <label className="text-xs font-bold text-foreground block mb-1">
+                    Full Name <span className="text-rose">*</span>
+                  </label>
                   <input
                     required
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="e.g. Albin Paul"
-                    className="mt-1 h-9 w-full rounded-xl border border-border bg-secondary px-3 text-xs outline-none focus:ring-1 focus:ring-rose"
+                    className="h-11 w-full rounded-xl border-2 border-slate-300 dark:border-zinc-700 bg-background px-3.5 text-sm font-semibold text-foreground placeholder:text-muted-foreground/60 outline-none focus:border-rose focus:ring-2 focus:ring-rose/20 transition-all"
                   />
                 </div>
                 <div>
-                  <label className="text-[11px] font-bold text-foreground">Phone Number (WhatsApp) *</label>
+                  <label className="text-xs font-bold text-foreground block mb-1">
+                    Phone Number (WhatsApp) <span className="text-rose">*</span>
+                  </label>
                   <input
                     required
                     type="tel"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder="+91 8590918769"
-                    className="mt-1 h-9 w-full rounded-xl border border-border bg-secondary px-3 text-xs outline-none focus:ring-1 focus:ring-rose"
+                    className="h-11 w-full rounded-xl border-2 border-slate-300 dark:border-zinc-700 bg-background px-3.5 text-sm font-semibold text-foreground placeholder:text-muted-foreground/60 outline-none focus:border-rose focus:ring-2 focus:ring-rose/20 transition-all"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="text-[11px] font-bold text-foreground">Email Address (Optional)</label>
+                <label className="text-xs font-bold text-foreground block mb-1">
+                  Email Address (Optional)
+                </label>
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="albin@example.com"
-                  className="mt-1 h-9 w-full rounded-xl border border-border bg-secondary px-3 text-xs outline-none focus:ring-1 focus:ring-rose"
+                  className="h-11 w-full rounded-xl border-2 border-slate-300 dark:border-zinc-700 bg-background px-3.5 text-sm font-semibold text-foreground placeholder:text-muted-foreground/60 outline-none focus:border-rose focus:ring-2 focus:ring-rose/20 transition-all"
                 />
               </div>
 
               <div>
-                <label className="text-[11px] font-bold text-foreground">Shipping Address *</label>
+                <label className="text-xs font-bold text-foreground block mb-1">
+                  Full Shipping Address <span className="text-rose">*</span>
+                </label>
                 <textarea
                   required
                   rows={2}
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
-                  placeholder="House/Flat No., Street, Area..."
-                  className="mt-1 w-full rounded-xl border border-border bg-secondary p-2.5 text-xs outline-none focus:ring-1 focus:ring-rose"
+                  placeholder="House/Flat No., Street, Building, Area..."
+                  className="w-full rounded-xl border-2 border-slate-300 dark:border-zinc-700 bg-background p-3 text-sm font-semibold text-foreground placeholder:text-muted-foreground/60 outline-none focus:border-rose focus:ring-2 focus:ring-rose/20 transition-all resize-none"
                 />
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-3">
+              <div className="grid gap-3.5 sm:grid-cols-3">
                 <div>
-                  <label className="text-[11px] font-bold text-foreground">City *</label>
+                  <label className="text-xs font-bold text-foreground block mb-1">
+                    City <span className="text-rose">*</span>
+                  </label>
                   <input
                     required
                     type="text"
                     value={city}
                     onChange={(e) => setCity(e.target.value)}
                     placeholder="Kochi"
-                    className="mt-1 h-9 w-full rounded-xl border border-border bg-secondary px-3 text-xs outline-none focus:ring-1 focus:ring-rose"
+                    className="h-11 w-full rounded-xl border-2 border-slate-300 dark:border-zinc-700 bg-background px-3.5 text-sm font-semibold text-foreground placeholder:text-muted-foreground/60 outline-none focus:border-rose focus:ring-2 focus:ring-rose/20 transition-all"
                   />
                 </div>
                 <div>
-                  <label className="text-[11px] font-bold text-foreground">State</label>
+                  <label className="text-xs font-bold text-foreground block mb-1">State</label>
                   <input
                     type="text"
                     value={state}
                     onChange={(e) => setState(e.target.value)}
-                    className="mt-1 h-9 w-full rounded-xl border border-border bg-secondary px-3 text-xs outline-none focus:ring-1 focus:ring-rose"
+                    className="h-11 w-full rounded-xl border-2 border-slate-300 dark:border-zinc-700 bg-background px-3.5 text-sm font-semibold text-foreground placeholder:text-muted-foreground/60 outline-none focus:border-rose focus:ring-2 focus:ring-rose/20 transition-all"
                   />
                 </div>
                 <div>
-                  <label className="text-[11px] font-bold text-foreground">Pincode *</label>
+                  <label className="text-xs font-bold text-foreground block mb-1">
+                    Pincode <span className="text-rose">*</span>
+                  </label>
                   <input
                     required
                     type="text"
                     value={pincode}
                     onChange={(e) => setPincode(e.target.value)}
                     placeholder="682001"
-                    className="mt-1 h-9 w-full rounded-xl border border-border bg-secondary px-3 text-xs outline-none focus:ring-1 focus:ring-rose"
+                    className="h-11 w-full rounded-xl border-2 border-slate-300 dark:border-zinc-700 bg-background px-3.5 text-sm font-semibold text-foreground placeholder:text-muted-foreground/60 outline-none focus:border-rose focus:ring-2 focus:ring-rose/20 transition-all"
                   />
                 </div>
               </div>
 
-              {/* Summary box */}
-              <div className="rounded-2xl bg-secondary/50 p-3.5 text-xs space-y-1">
-                <div className="flex justify-between text-muted-foreground">
+              <div>
+                <label className="text-xs font-bold text-foreground block mb-1">Landmark (Optional)</label>
+                <input
+                  type="text"
+                  value={landmark}
+                  onChange={(e) => setLandmark(e.target.value)}
+                  placeholder="Near Post Office, Opposite Park..."
+                  className="h-11 w-full rounded-xl border-2 border-slate-300 dark:border-zinc-700 bg-background px-3.5 text-sm font-semibold text-foreground placeholder:text-muted-foreground/60 outline-none focus:border-rose focus:ring-2 focus:ring-rose/20 transition-all"
+                />
+              </div>
+
+              {/* Order Summary box */}
+              <div className="rounded-2xl border border-slate-200 dark:border-zinc-700 bg-slate-100 dark:bg-zinc-800/90 p-4 text-xs space-y-1.5 shadow-sm">
+                <div className="flex justify-between font-semibold text-foreground/80">
                   <span>Subtotal ({cart.length} items)</span>
-                  <span>{formatINR(subtotal)}</span>
+                  <span className="font-bold text-foreground">{formatINR(subtotal)}</span>
                 </div>
                 {appliedDiscount > 0 && (
-                  <div className="flex justify-between text-emerald-600 font-semibold">
-                    <span>Discount</span>
+                  <div className="flex justify-between text-emerald-600 font-bold">
+                    <span>Coupon Discount</span>
                     <span>-{formatINR(appliedDiscount)}</span>
                   </div>
                 )}
-                <div className="flex justify-between text-muted-foreground">
-                  <span>Shipping</span>
-                  <span>{shippingFee === 0 ? 'FREE' : formatINR(shippingFee)}</span>
+                <div className="flex justify-between font-semibold text-foreground/80">
+                  <span>Delivery Fee</span>
+                  <span className="font-bold text-foreground">{shippingFee === 0 ? 'FREE' : formatINR(shippingFee)}</span>
                 </div>
-                <div className="flex justify-between border-t border-border pt-1.5 font-bold text-foreground text-sm">
+                <div className="flex justify-between border-t border-slate-300 dark:border-zinc-600 pt-2 font-extrabold text-foreground text-base">
                   <span>Total Payable</span>
-                  <span className="text-rose">{formatINR(totalAmount)}</span>
+                  <span className="text-rose font-black">{formatINR(totalAmount)}</span>
                 </div>
               </div>
 
               <button
                 type="submit"
-                className="w-full flex items-center justify-center gap-2 rounded-2xl bg-rose py-3.5 text-sm font-bold text-rose-foreground shadow-lg hover:bg-rose/90 transition-all active:scale-98"
+                className="w-full flex items-center justify-center gap-2 rounded-2xl bg-rose py-4 text-base font-extrabold text-white shadow-xl hover:bg-rose/90 transition-all active:scale-98"
               >
                 <span>Proceed to UPI Payment</span>
-                <ArrowRight className="size-4" />
+                <ArrowRight className="size-5" />
               </button>
             </form>
           </div>
         )}
 
         {step === 'upi_payment' && (
-          <div>
+          <div className="pb-4">
             <div className="mb-4 flex items-center justify-between">
               <div>
-                <span className="rounded-full bg-rose/10 px-3 py-1 text-xs font-bold text-rose">
+                <span className="inline-block rounded-full bg-rose px-3 py-1 text-xs font-extrabold text-white shadow-sm">
                   Step 2 of 2: UPI Transfer
                 </span>
                 <h2 className="mt-1 font-display text-xl font-bold text-foreground">Scan or Copy UPI ID</h2>
@@ -293,7 +316,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               <button
                 type="button"
                 onClick={() => setStep('details')}
-                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                className="flex items-center gap-1 rounded-lg bg-slate-100 dark:bg-zinc-800 px-3 py-1.5 text-xs font-bold text-foreground hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors"
               >
                 <ArrowLeft className="size-3.5" />
                 Back
@@ -301,24 +324,24 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             </div>
 
             {errorMsg && (
-              <div className="mb-3 rounded-xl bg-destructive/10 p-2.5 text-xs text-destructive font-medium">
+              <div className="mb-3 rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive font-bold">
                 {errorMsg}
               </div>
             )}
 
             <div className="space-y-4">
               {/* Total display */}
-              <div className="rounded-2xl bg-rose/5 border border-rose/20 p-3 text-center">
-                <span className="text-xs text-muted-foreground">Amount to Pay:</span>
-                <div className="font-display text-2xl font-extrabold text-rose">
+              <div className="rounded-2xl border-2 border-rose/30 bg-rose/10 p-4 text-center">
+                <span className="text-xs font-bold text-foreground/80">Amount to Pay:</span>
+                <div className="font-display text-3xl font-black text-rose mt-0.5">
                   {formatINR(totalAmount)}
                 </div>
-                <div className="text-[11px] text-muted-foreground">Order #{currentOrderNum}</div>
+                <div className="text-xs font-bold text-muted-foreground mt-1">Order #{currentOrderNum}</div>
               </div>
 
               {/* UPI QR Code & Copy Box */}
-              <div className="flex flex-col sm:flex-row items-center gap-4 rounded-2xl border border-border bg-secondary/30 p-4">
-                <div className="relative grid size-40 place-items-center rounded-2xl bg-white p-2 shadow-inner border border-border shrink-0">
+              <div className="flex flex-col sm:flex-row items-center gap-4 rounded-2xl border-2 border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-900 p-4 shadow-sm">
+                <div className="relative grid size-44 place-items-center rounded-2xl bg-white p-2 shadow-sm border border-slate-200 shrink-0">
                   <img
                     src={qrCodeImageUrl}
                     alt="UPI Payment QR Code"
@@ -328,26 +351,26 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
                 <div className="flex-1 space-y-3 text-center sm:text-left">
                   <div>
-                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                      UPI ID
+                    <label className="text-[11px] font-extrabold text-foreground uppercase tracking-wider block">
+                      Store Official UPI ID
                     </label>
                     <div className="mt-1 flex items-center justify-center sm:justify-start gap-2">
-                      <code className="rounded-lg bg-card border border-border px-3 py-1.5 font-mono text-sm font-bold text-foreground">
+                      <code className="rounded-xl bg-white dark:bg-zinc-800 border-2 border-slate-300 dark:border-zinc-700 px-3.5 py-2 font-mono text-base font-extrabold text-foreground shadow-sm">
                         {upiId}
                       </code>
                       <button
                         type="button"
                         onClick={handleCopyUpi}
-                        className="flex items-center gap-1 rounded-lg bg-rose px-2.5 py-1.5 text-xs font-bold text-rose-foreground hover:bg-rose/90 transition-all"
+                        className="flex items-center gap-1.5 rounded-xl bg-rose px-3 py-2 text-xs font-extrabold text-white hover:bg-rose/90 transition-all shadow-sm"
                       >
                         {copiedUpi ? (
                           <>
-                            <Check className="size-3.5" />
+                            <Check className="size-4" />
                             <span>Copied</span>
                           </>
                         ) : (
                           <>
-                            <Copy className="size-3.5" />
+                            <Copy className="size-4" />
                             <span>Copy</span>
                           </>
                         )}
@@ -355,53 +378,53 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     </div>
                   </div>
 
-                  <p className="text-[11px] text-muted-foreground leading-relaxed">
-                    Open Google Pay, PhonePe, Paytm or any UPI app. Scan the QR code or pay to <strong className="text-foreground">{upiId}</strong>.
+                  <p className="text-xs font-medium text-foreground/80 leading-relaxed">
+                    Open Google Pay, PhonePe, Paytm or any UPI app. Scan the QR code above or send <strong className="text-rose font-bold">{formatINR(totalAmount)}</strong> to <strong className="text-foreground font-extrabold">{upiId}</strong>.
                   </p>
                 </div>
               </div>
 
               {/* App Deep Link Buttons */}
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-foreground">Pay via UPI App</label>
+              <div className="space-y-2">
+                <label className="text-xs font-extrabold text-foreground block">Instant Pay via App</label>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                   <a
                     href={`phonepe://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(storeName)}&am=${totalAmount}&cu=INR&tn=${encodeURIComponent(`Order-${currentOrderNum}`)}`}
-                    className="flex flex-col items-center justify-center rounded-xl border border-border bg-secondary/80 p-2 text-center text-xs font-semibold text-foreground hover:bg-rose/10 hover:border-rose transition-all"
+                    className="flex flex-col items-center justify-center rounded-xl border-2 border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-2.5 text-center text-xs font-bold text-foreground hover:border-rose hover:text-rose transition-all shadow-sm"
                   >
                     <span>PhonePe</span>
                   </a>
                   <a
                     href={`gpay://upi/pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(storeName)}&am=${totalAmount}&cu=INR&tn=${encodeURIComponent(`Order-${currentOrderNum}`)}`}
-                    className="flex flex-col items-center justify-center rounded-xl border border-border bg-secondary/80 p-2 text-center text-xs font-semibold text-foreground hover:bg-rose/10 hover:border-rose transition-all"
+                    className="flex flex-col items-center justify-center rounded-xl border-2 border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-2.5 text-center text-xs font-bold text-foreground hover:border-rose hover:text-rose transition-all shadow-sm"
                   >
                     <span>Google Pay</span>
                   </a>
                   <a
                     href={`paytmmp://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(storeName)}&am=${totalAmount}&cu=INR&tn=${encodeURIComponent(`Order-${currentOrderNum}`)}`}
-                    className="flex flex-col items-center justify-center rounded-xl border border-border bg-secondary/80 p-2 text-center text-xs font-semibold text-foreground hover:bg-rose/10 hover:border-rose transition-all"
+                    className="flex flex-col items-center justify-center rounded-xl border-2 border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-2.5 text-center text-xs font-bold text-foreground hover:border-rose hover:text-rose transition-all shadow-sm"
                   >
                     <span>Paytm</span>
                   </a>
                   <a
                     href={upiPayUrl}
-                    className="flex flex-col items-center justify-center rounded-xl border border-border bg-secondary/80 p-2 text-center text-xs font-semibold text-foreground hover:bg-rose/10 hover:border-rose transition-all"
+                    className="flex flex-col items-center justify-center rounded-xl border-2 border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-2.5 text-center text-xs font-bold text-foreground hover:border-rose hover:text-rose transition-all shadow-sm"
                   >
                     <span>Any UPI App</span>
                   </a>
                 </div>
               </div>
 
-              <div className="rounded-xl bg-amber-500/10 border border-amber-500/20 p-3 text-[11px] text-amber-600 dark:text-amber-400">
-                <strong className="block font-bold">Important Notice:</strong>
-                After completing the payment in your UPI app, click <strong>"I've Paid"</strong> below. Your payment will be manually verified by our team before dispatch.
+              <div className="rounded-2xl bg-amber-500/10 border-2 border-amber-500/30 p-3.5 text-xs text-amber-800 dark:text-amber-200 font-semibold">
+                <strong className="block font-bold text-amber-900 dark:text-amber-100 mb-0.5">Important Notice:</strong>
+                After completing the payment in your UPI app, click <strong>"I've Paid"</strong> below. Your payment will be verified by our store team before dispatch.
               </div>
 
               <button
                 type="button"
                 disabled={isSubmitting}
                 onClick={handleConfirmPaid}
-                className="w-full flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 py-3.5 text-sm font-extrabold text-white shadow-xl hover:bg-emerald-700 transition-all active:scale-98"
+                className="w-full flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 py-4 text-base font-extrabold text-white shadow-xl hover:bg-emerald-700 transition-all active:scale-98"
               >
                 {isSubmitting ? (
                   <span>Submitting Order…</span>
@@ -423,42 +446,42 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             </div>
 
             <div>
-              <span className="rounded-full bg-amber-500/10 px-3 py-1 text-xs font-bold text-amber-600">
+              <span className="inline-block rounded-full bg-amber-500/20 px-3.5 py-1 text-xs font-extrabold text-amber-700 dark:text-amber-300">
                 Pending Verification
               </span>
               <h2 className="mt-2 font-display text-2xl font-bold text-foreground">Order Submitted!</h2>
-              <p className="mt-1 text-xs text-muted-foreground max-w-sm mx-auto">
-                Thank you, <strong className="text-foreground">{createdOrder.customer_name}</strong>! Your order <strong className="text-rose">#{createdOrder.order_number}</strong> is placed.
+              <p className="mt-1 text-xs font-medium text-muted-foreground max-w-sm mx-auto">
+                Thank you, <strong className="text-foreground">{createdOrder.customer_name}</strong>! Your order <strong className="text-rose font-bold">#{createdOrder.order_number}</strong> is placed.
               </p>
             </div>
 
-            <div className="rounded-2xl border border-border bg-secondary/40 p-4 text-left text-xs space-y-2 max-w-md mx-auto">
+            <div className="rounded-2xl border-2 border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-900 p-4 text-left text-xs space-y-2 max-w-md mx-auto shadow-sm">
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Order Number:</span>
+                <span className="font-semibold text-muted-foreground">Order Number:</span>
                 <span className="font-bold text-foreground">{createdOrder.order_number}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Total Paid:</span>
-                <span className="font-bold text-rose">{formatINR(createdOrder.total_amount)}</span>
+                <span className="font-semibold text-muted-foreground">Total Paid:</span>
+                <span className="font-extrabold text-rose">{formatINR(createdOrder.total_amount)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Payment Status:</span>
-                <span className="font-semibold text-amber-500">Pending Verification</span>
+                <span className="font-semibold text-muted-foreground">Payment Status:</span>
+                <span className="font-bold text-amber-600 dark:text-amber-400">Pending Verification</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Deliver To:</span>
-                <span className="font-medium text-foreground">{createdOrder.shipping_address.city}, {createdOrder.shipping_address.pincode}</span>
+                <span className="font-semibold text-muted-foreground">Deliver To:</span>
+                <span className="font-bold text-foreground">{createdOrder.shipping_address.city}, {createdOrder.shipping_address.pincode}</span>
               </div>
             </div>
 
-            <p className="text-[11px] text-muted-foreground max-w-sm mx-auto">
+            <p className="text-xs font-medium text-muted-foreground max-w-sm mx-auto">
               Our store admin will verify your UPI payment shortly and update your order status. You can track updates anytime using your order number.
             </p>
 
             <button
               type="button"
               onClick={onClose}
-              className="w-full rounded-2xl bg-rose py-3 text-xs font-bold text-rose-foreground shadow-md hover:bg-rose/90 transition-all"
+              className="w-full rounded-2xl bg-rose py-3.5 text-xs font-extrabold text-white shadow-md hover:bg-rose/90 transition-all"
             >
               Done & Return to Store
             </button>

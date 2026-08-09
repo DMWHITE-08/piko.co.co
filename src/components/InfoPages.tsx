@@ -10,8 +10,8 @@ export const InfoModal: React.FC<InfoModalProps> = ({ type, onClose }) => {
   if (!type) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm piko-fade-up">
-      <div className="relative max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-3xl border border-border bg-card p-6 shadow-2xl space-y-4">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/95 p-2 sm:p-4 flex items-start justify-center min-h-full py-4 sm:py-8 piko-fade-up">
+      <div className="relative my-auto max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-3xl border-2 border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-6 shadow-2xl space-y-4">
         <button
           onClick={onClose}
           className="absolute right-4 top-4 z-10 grid size-9 place-items-center rounded-full bg-secondary text-foreground hover:bg-rose/10 hover:text-rose"

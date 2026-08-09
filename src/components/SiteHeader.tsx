@@ -21,10 +21,13 @@ interface SiteHeaderProps {
 const NAV_ITEMS = [
   { label: 'All Shop', slug: 'all' },
   { label: 'Gifts', slug: 'gifts' },
+  { label: 'Tech & Gadgets', slug: 'tech' },
+  { label: 'Home Decor', slug: 'home-decor' },
   { label: 'Jewellery', slug: 'jewellery' },
   { label: 'Toys & Plushies', slug: 'toys' },
   { label: 'F1 Collectibles', slug: 'f1-collectibles' },
   { label: 'Couple Gifts', slug: 'couple-gifts' },
+  { label: 'Stationery', slug: 'stationery' },
 ];
 
 export const SiteHeader: React.FC<SiteHeaderProps> = ({
@@ -73,7 +76,7 @@ export const SiteHeader: React.FC<SiteHeaderProps> = ({
   };
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border/80 bg-background/90 backdrop-blur-md transition-colors">
+    <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur-md shadow-sm transition-colors">
       <div className="piko-container flex h-16 items-center justify-between gap-3">
         {/* Mobile Hamburger Button */}
         <button

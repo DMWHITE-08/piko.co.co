@@ -113,7 +113,7 @@ export const ProductsBrowser: React.FC<ProductsBrowserProps> = ({
             <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1">
               <Filter className="size-3.5" /> Filter:
             </span>
-            {['all', 'bestseller', 'trending', 'gift', 'under299', 'f1', 'jewellery'].map((tag) => (
+            {['all', 'bestseller', 'trending', 'tech', 'home-decor', 'stationery', 'gift', 'under299', 'f1', 'jewellery'].map((tag) => (
               <button
                 key={tag}
                 onClick={() => setSelectedTag(tag)}
