@@ -26,7 +26,13 @@ export const ProductsBrowser: React.FC<ProductsBrowserProps> = ({
 }) => {
   const [sortOption, setSortOption] = useState<'newest' | 'price_asc' | 'price_desc' | 'rating'>('newest');
   const [selectedTag, setSelectedTag] = useState<string>('all');
-  const [maxPriceFilter, setMaxPriceFilter] = useState<number>(1000);
+  const [maxPriceFilter, setMaxPriceFilter] = useState<number>(50000);
+
+  const calculatedMaxPrice = useMemo(() => {
+    if (!products || products.length === 0) return 10000;
+    const highest = Math.max(...products.map((p) => p.selling_price || 0));
+    return Math.max(10000, highest);
+  }, [products]);
 
   const filteredProducts = useMemo(() => {
     return products
@@ -36,29 +42,30 @@ export const ProductsBrowser: React.FC<ProductsBrowserProps> = ({
           return false;
         }
         // Search query
+        const pTags = Array.isArray(p.tags) ? p.tags : [];
         if (
           searchQuery.trim() &&
-          !p.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
-          !p.short_description.toLowerCase().includes(searchQuery.toLowerCase()) &&
-          !p.tags.some((t) => t.toLowerCase().includes(searchQuery.toLowerCase()))
+          !(p.name || '').toLowerCase().includes(searchQuery.toLowerCase()) &&
+          !(p.short_description || '').toLowerCase().includes(searchQuery.toLowerCase()) &&
+          !pTags.some((t) => t.toLowerCase().includes(searchQuery.toLowerCase()))
         ) {
           return false;
         }
         // Tag filter
-        if (selectedTag !== 'all' && !p.tags.includes(selectedTag)) {
+        if (selectedTag !== 'all' && !pTags.includes(selectedTag)) {
           return false;
         }
         // Price filter
-        if (p.selling_price > maxPriceFilter) {
+        if (typeof p.selling_price === 'number' && p.selling_price > maxPriceFilter) {
           return false;
         }
         return true;
       })
       .sort((a, b) => {
-        if (sortOption === 'price_asc') return a.selling_price - b.selling_price;
-        if (sortOption === 'price_desc') return b.selling_price - a.selling_price;
-        if (sortOption === 'rating') return b.rating - a.rating;
-        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        if (sortOption === 'price_asc') return (a.selling_price || 0) - (b.selling_price || 0);
+        if (sortOption === 'price_desc') return (b.selling_price || 0) - (a.selling_price || 0);
+        if (sortOption === 'rating') return (b.rating || 0) - (a.rating || 0);
+        return new Date(b.created_at || Date.now()).getTime() - new Date(a.created_at || Date.now()).getTime();
       });
   }, [products, activeCategory, searchQuery, selectedTag, maxPriceFilter, sortOption]);
 
@@ -134,10 +141,10 @@ export const ProductsBrowser: React.FC<ProductsBrowserProps> = ({
               <span>Max ₹{maxPriceFilter}</span>
               <input
                 type="range"
-                min="199"
-                max="1000"
-                step="50"
-                value={maxPriceFilter}
+                min="100"
+                max={calculatedMaxPrice}
+                step="100"
+                value={Math.min(maxPriceFilter, calculatedMaxPrice)}
                 onChange={(e) => setMaxPriceFilter(Number(e.target.value))}
                 className="h-1.5 w-24 rounded-lg bg-secondary accent-rose cursor-pointer"
               />
@@ -192,7 +199,7 @@ export const ProductsBrowser: React.FC<ProductsBrowserProps> = ({
                 onSelectCategory('all');
                 onSearchChange('');
                 setSelectedTag('all');
-                setMaxPriceFilter(1000);
+                setMaxPriceFilter(calculatedMaxPrice);
               }}
               className="mt-4 rounded-full bg-rose px-5 py-2 text-xs font-semibold text-rose-foreground"
             >

@@ -92,13 +92,27 @@ export default function App() {
     setIsAdmin(authStatus);
 
     // Load products and categories directly from Express API / Supabase
-    fetchProducts().then((prods) => {
-      setProducts(prods || []);
-    });
+    const refreshCatalog = () => {
+      fetchProducts().then((prods) => {
+        if (prods && Array.isArray(prods)) {
+          setProducts(prods);
+        }
+      });
+      fetchCategories().then((cats) => {
+        if (cats && Array.isArray(cats)) {
+          setCategories(cats);
+        }
+      });
+    };
 
-    fetchCategories().then((cats) => {
-      setCategories(cats || []);
-    });
+    refreshCatalog();
+
+    // Auto-poll catalog every 6 seconds so clients receive admin updates live
+    const pollInterval = setInterval(refreshCatalog, 6000);
+
+    // Refetch on window focus
+    const handleFocus = () => refreshCatalog();
+    window.addEventListener('focus', handleFocus);
 
     // Secret URL check: ?admin=1 or #admin
     if (typeof window !== 'undefined') {
@@ -122,7 +136,11 @@ export default function App() {
     };
 
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    return () => {
+      clearInterval(pollInterval);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
   }, []);
 
   const showToast = (msg: string) => {
