@@ -234,14 +234,16 @@ export async function getCategoriesFromDb(): Promise<Category[]> {
 export async function getProductsFromDb(publicOnly: boolean = true): Promise<any[]> {
   if (supabase) {
     try {
-      const tableName = publicOnly ? 'public_products' : 'products';
-      const { data, error } = await supabase.from(tableName).select('*').order('created_at', { ascending: false });
+      const { data, error } = await supabase.from('products').select('*').order('created_at', { ascending: false });
       if (!error && Array.isArray(data)) {
         inMemoryProducts = data as Product[];
         return publicOnly ? inMemoryProducts.map(sanitizePublicProduct) : inMemoryProducts;
       }
+      if (error) {
+        console.warn('[Supabase] Error querying products table:', error.message);
+      }
     } catch (err) {
-      console.warn('[Supabase] Error fetching products:', err);
+      console.warn('[Supabase] Exception fetching products:', err);
     }
   }
 
@@ -254,12 +256,11 @@ export async function getProductsFromDb(publicOnly: boolean = true): Promise<any
 export async function getProductBySlugFromDb(slugOrId: string, publicOnly: boolean = true): Promise<any | null> {
   if (supabase) {
     try {
-      const tableName = publicOnly ? 'public_products' : 'products';
       const { data, error } = await supabase
-        .from(tableName)
+        .from('products')
         .select('*')
         .or(`slug.eq.${slugOrId},id.eq.${slugOrId}`)
-        .single();
+        .maybeSingle();
 
       if (!error && data) {
         return publicOnly ? sanitizePublicProduct(data) : data;

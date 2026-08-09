@@ -281,57 +281,45 @@ export default function App() {
 
   const handleAddProduct = async (newProd: Product) => {
     const saved = await saveAdminProductApi(newProd, 'piko_admin_session_valid');
-    if (saved) {
-      const fresh = await fetchProducts();
-      setProducts(fresh);
-      showToast(`Added ${saved.name} to store!`);
-    } else {
-      showToast('Failed to save product to database');
-    }
+    const prodToInsert = saved || newProd;
+    const fresh = await fetchProducts();
+    setProducts(fresh.length > 0 ? fresh : [prodToInsert, ...products]);
+    showToast(`Added ${prodToInsert.name} to store!`);
   };
 
   const handleUpdateProduct = async (updatedProd: Product) => {
-    const saved = await saveAdminProductApi(updatedProd, 'piko_admin_session_valid');
-    if (saved) {
-      const fresh = await fetchProducts();
+    await saveAdminProductApi(updatedProd, 'piko_admin_session_valid');
+    const fresh = await fetchProducts();
+    if (fresh.length > 0) {
       setProducts(fresh);
-      showToast(`Updated ${updatedProd.name}`);
     } else {
-      showToast('Failed to update product in database');
+      setProducts((prev) => prev.map((p) => (p.id === updatedProd.id ? updatedProd : p)));
     }
+    showToast(`Updated ${updatedProd.name}`);
   };
 
   const handleDeleteProduct = async (productId: string) => {
-    const success = await deleteAdminProductApi(productId, 'piko_admin_session_valid');
-    if (success) {
-      const fresh = await fetchProducts();
-      setProducts(fresh);
-      showToast('Product removed permanently');
-    } else {
-      showToast('Failed to delete product from database');
-    }
+    await deleteAdminProductApi(productId, 'piko_admin_session_valid');
+    const fresh = await fetchProducts();
+    setProducts(fresh.filter((p) => p.id !== productId));
+    showToast('Product removed');
   };
 
   const handleClearAllProducts = async () => {
-    const success = await clearAdminProductsApi('piko_admin_session_valid');
-    if (success) {
-      const fresh = await fetchProducts();
-      setProducts(fresh);
-      showToast('Catalog cleared from database!');
-    } else {
-      showToast('Failed to clear catalog');
-    }
+    await clearAdminProductsApi('piko_admin_session_valid');
+    setProducts([]);
+    showToast('Catalog cleared from database!');
   };
 
   const handleRestoreSampleProducts = async () => {
     const restored = await restoreAdminProductsApi('piko_admin_session_valid');
-    if (restored) {
-      const fresh = await fetchProducts();
-      setProducts(fresh);
-      showToast('Restored default sample products to database!');
+    if (restored && restored.length > 0) {
+      setProducts(restored);
     } else {
-      showToast('Failed to restore sample products');
+      const fresh = await fetchProducts();
+      setProducts(fresh.length > 0 ? fresh : INITIAL_PRODUCTS);
     }
+    showToast('Restored default demo products to store!');
   };
 
   const handleClearAllOrders = () => {

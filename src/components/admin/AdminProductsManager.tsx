@@ -118,7 +118,16 @@ export const AdminProductsManager: React.FC<AdminProductsManagerProps> = ({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {products.length > 0 ? (
+          <button
+            onClick={onRestoreSampleProducts}
+            className="inline-flex items-center gap-1.5 rounded-2xl bg-secondary border border-border px-3.5 py-2.5 text-xs font-bold text-foreground hover:bg-rose/10 hover:text-rose transition-all"
+            title="Load initial sample/demo items into the store"
+          >
+            <Sparkles className="size-3.5 text-rose" />
+            <span>Load Demo Items</span>
+          </button>
+
+          {products.length > 0 && (
             <button
               onClick={() => {
                 if (window.confirm('Are you sure you want to clear all products from the store?')) {
@@ -129,14 +138,6 @@ export const AdminProductsManager: React.FC<AdminProductsManagerProps> = ({
             >
               <Trash2 className="size-3.5" />
               <span>Clear Catalog</span>
-            </button>
-          ) : (
-            <button
-              onClick={onRestoreSampleProducts}
-              className="inline-flex items-center gap-1.5 rounded-2xl bg-secondary border border-border px-3.5 py-2.5 text-xs font-bold text-foreground hover:bg-rose/10 hover:text-rose transition-all"
-            >
-              <Sparkles className="size-3.5 text-rose" />
-              <span>Restore Sample Products</span>
             </button>
           )}
 
