@@ -32,6 +32,7 @@ export const AdminProductsManager: React.FC<AdminProductsManagerProps> = ({
   const [categorySlug, setCategorySlug] = useState('gifts');
   const [sellingPrice, setSellingPrice] = useState(299);
   const [comparePrice, setComparePrice] = useState(599);
+  const [stockCount, setStockCount] = useState(25);
   const [imageUrl, setImageUrl] = useState('');
 
   const handleOpenAdd = () => {
@@ -42,6 +43,7 @@ export const AdminProductsManager: React.FC<AdminProductsManagerProps> = ({
     setCategorySlug(categories[0]?.slug || 'gifts');
     setSellingPrice(299);
     setComparePrice(599);
+    setStockCount(25);
     setImageUrl('');
     setIsModalOpen(true);
   };
@@ -54,6 +56,7 @@ export const AdminProductsManager: React.FC<AdminProductsManagerProps> = ({
     setCategorySlug(p.category_slug || 'gifts');
     setSellingPrice(p.selling_price);
     setComparePrice(p.compare_at_price || 0);
+    setStockCount(p.stock_count ?? 25);
     setImageUrl(p.images[0] || '');
     setIsModalOpen(true);
   };
@@ -77,9 +80,12 @@ export const AdminProductsManager: React.FC<AdminProductsManagerProps> = ({
         short_description: shortDesc || name,
         description: desc || shortDesc || name,
         category_slug: categorySlug,
+        category_id: `cat-${categorySlug}`,
         selling_price: Number(sellingPrice),
         compare_at_price: Number(comparePrice) || null,
         images: imagesList.length > 0 ? imagesList : ['https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=800&auto=format&fit=crop&q=80'],
+        stock_count: Number(stockCount),
+        in_stock: Number(stockCount) > 0,
       };
       onUpdateProduct(updated);
     } else {
@@ -96,11 +102,11 @@ export const AdminProductsManager: React.FC<AdminProductsManagerProps> = ({
         source_price: Math.round(Number(sellingPrice) * 0.5),
         selling_price: Number(sellingPrice),
         compare_at_price: Number(comparePrice) || null,
-        stock_count: 25,
-        in_stock: true,
+        stock_count: Number(stockCount),
+        in_stock: Number(stockCount) > 0,
         is_featured: true,
-        rating: 4.8,
-        rating_count: 12,
+        rating: 5.0,
+        rating_count: 1,
         tags: ['new', categorySlug],
         created_at: new Date().toISOString(),
       };
@@ -280,7 +286,7 @@ export const AdminProductsManager: React.FC<AdminProductsManagerProps> = ({
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="font-bold text-foreground">Selling Price (₹) *</label>
                   <input
@@ -297,6 +303,16 @@ export const AdminProductsManager: React.FC<AdminProductsManagerProps> = ({
                     type="number"
                     value={comparePrice}
                     onChange={(e) => setComparePrice(Number(e.target.value))}
+                    className="mt-1 h-9 w-full rounded-xl border border-border bg-secondary px-3 outline-none focus:ring-1 focus:ring-rose"
+                  />
+                </div>
+                <div>
+                  <label className="font-bold text-foreground">Stock *</label>
+                  <input
+                    required
+                    type="number"
+                    value={stockCount}
+                    onChange={(e) => setStockCount(Number(e.target.value))}
                     className="mt-1 h-9 w-full rounded-xl border border-border bg-secondary px-3 outline-none focus:ring-1 focus:ring-rose"
                   />
                 </div>

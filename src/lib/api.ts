@@ -145,97 +145,80 @@ export async function trackOrderApi(idOrNumber: string): Promise<Order | null> {
  * Fetch Admin Products via Express API (/api/admin/products)
  */
 export async function fetchAdminProductsApi(token: string): Promise<Product[]> {
-  try {
-    const res = await fetch('/api/admin/products?_t=' + Date.now(), {
-      cache: 'no-store',
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (res.ok) {
-      const data = await res.json();
-      if (Array.isArray(data)) {
-        return data;
-      }
-    }
-  } catch (err) {
-    console.warn('[API] Error fetching admin products:', err);
+  const res = await fetch('/api/admin/products?_t=' + Date.now(), {
+    cache: 'no-store',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.details || errData.error || `Failed to fetch admin products (HTTP ${res.status})`);
   }
-  return [];
+  const data = await res.json();
+  return Array.isArray(data) ? data : [];
 }
 
 /**
  * Clear All Admin Products via Express API (/api/admin/products)
  */
 export async function clearAdminProductsApi(token: string): Promise<boolean> {
-  try {
-    const res = await fetch('/api/admin/products', {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (res.ok) {
-      return true;
-    }
-  } catch (err) {
-    console.warn('[API] Error clearing admin products:', err);
+  const res = await fetch('/api/admin/products', {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.details || errData.error || `Failed to clear catalog (HTTP ${res.status})`);
   }
-  return false;
+  return true;
 }
 
 /**
  * Restore Sample Products via Express API (/api/admin/products/restore)
  */
 export async function restoreAdminProductsApi(token: string): Promise<Product[]> {
-  try {
-    const res = await fetch('/api/admin/products/restore', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (res.ok) {
-      return await res.json();
-    }
-  } catch (err) {
-    console.warn('[API] Error restoring sample products:', err);
+  const res = await fetch('/api/admin/products/restore', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.details || errData.error || `Failed to restore sample products (HTTP ${res.status})`);
   }
-  return [];
+  return await res.json();
 }
 
 /**
  * Save / Upsert Product via Express API (/api/admin/products)
  */
-export async function saveAdminProductApi(product: Product, token: string): Promise<Product | null> {
-  try {
-    const res = await fetch('/api/admin/products', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(product),
-    });
-    if (res.ok) {
-      return await res.json();
-    }
-  } catch (err) {
-    console.warn('[API] Error saving admin product:', err);
+export async function saveAdminProductApi(product: Product, token: string): Promise<Product> {
+  const res = await fetch('/api/admin/products', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(product),
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.details || errData.error || `Failed to save product (HTTP ${res.status})`);
   }
-  return null;
+  return await res.json();
 }
 
 /**
  * Delete Product via Express API (/api/admin/products/:id)
  */
 export async function deleteAdminProductApi(productId: string, token: string): Promise<boolean> {
-  try {
-    const res = await fetch(`/api/admin/products/${encodeURIComponent(productId)}`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (res.ok) {
-      return true;
-    }
-  } catch (err) {
-    console.warn('[API] Error deleting product:', err);
+  const res = await fetch(`/api/admin/products/${encodeURIComponent(productId)}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.details || errData.error || `Failed to delete product (HTTP ${res.status})`);
   }
-  return false;
+  return true;
 }
 
 /**

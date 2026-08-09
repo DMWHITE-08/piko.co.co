@@ -15,6 +15,7 @@ import {
 } from './lib/storage';
 import {
   fetchProducts,
+  fetchAdminProductsApi,
   fetchCategories,
   createOrderApi,
   saveAdminProductApi,
@@ -93,11 +94,17 @@ export default function App() {
 
     // Load products and categories directly from Express API / Supabase
     const refreshCatalog = () => {
-      fetchProducts().then((prods) => {
+      const isAuth = isAdminAuthenticated();
+      const productPromise = isAuth
+        ? fetchAdminProductsApi('piko_admin_session_valid')
+        : fetchProducts();
+
+      productPromise.then((prods) => {
         if (prods && Array.isArray(prods)) {
           setProducts(prods);
         }
       });
+
       fetchCategories().then((cats) => {
         if (cats && Array.isArray(cats)) {
           setCategories(cats);
@@ -298,56 +305,79 @@ export default function App() {
   };
 
   const handleAddProduct = async (newProd: Product) => {
-    setProducts((prev) => [newProd, ...prev.filter((p) => p.id !== newProd.id)]);
-    showToast(`Added ${newProd.name} to store!`);
-
-    await saveAdminProductApi(newProd, 'piko_admin_session_valid');
-    const fresh = await fetchProducts();
-    if (fresh && fresh.length > 0) {
-      setProducts(fresh);
+    try {
+      const saved = await saveAdminProductApi(newProd, 'piko_admin_session_valid');
+      if (saved) {
+        showToast(`Added ${saved.name} to store!`);
+        const fresh = await fetchAdminProductsApi('piko_admin_session_valid');
+        setProducts(fresh);
+      } else {
+        showToast('Failed to add product to database.');
+      }
+    } catch (err: any) {
+      showToast(`Error adding product: ${err?.message || 'Database error'}`);
     }
   };
 
   const handleUpdateProduct = async (updatedProd: Product) => {
-    setProducts((prev) => prev.map((p) => (p.id === updatedProd.id ? updatedProd : p)));
-    showToast(`Updated ${updatedProd.name}`);
-
-    await saveAdminProductApi(updatedProd, 'piko_admin_session_valid');
-    const fresh = await fetchProducts();
-    if (fresh && fresh.length > 0) {
-      setProducts(fresh);
+    try {
+      const saved = await saveAdminProductApi(updatedProd, 'piko_admin_session_valid');
+      if (saved) {
+        showToast(`Updated ${saved.name}`);
+        const fresh = await fetchAdminProductsApi('piko_admin_session_valid');
+        setProducts(fresh);
+      } else {
+        showToast('Failed to update product in database.');
+      }
+    } catch (err: any) {
+      showToast(`Error updating product: ${err?.message || 'Database error'}`);
     }
   };
 
   const handleDeleteProduct = async (productId: string) => {
-    setProducts((prev) => prev.filter((p) => p.id !== productId));
-    showToast('Product removed');
-
-    await deleteAdminProductApi(productId, 'piko_admin_session_valid');
-    const fresh = await fetchProducts();
-    setProducts(fresh);
+    try {
+      const success = await deleteAdminProductApi(productId, 'piko_admin_session_valid');
+      if (success) {
+        showToast('Product removed from database.');
+        const fresh = await fetchAdminProductsApi('piko_admin_session_valid');
+        setProducts(fresh);
+      } else {
+        showToast('Failed to delete product from database.');
+      }
+    } catch (err: any) {
+      showToast(`Error deleting product: ${err?.message || 'Database error'}`);
+    }
   };
 
   const handleClearAllProducts = async () => {
-    setProducts([]);
-    await clearAdminProductsApi('piko_admin_session_valid');
-    showToast('Catalog cleared from database!');
+    try {
+      const success = await clearAdminProductsApi('piko_admin_session_valid');
+      if (success) {
+        showToast('Catalog cleared from database!');
+        setProducts([]);
+      } else {
+        showToast('Failed to clear catalog from database.');
+      }
+    } catch (err: any) {
+      showToast(`Error clearing catalog: ${err?.message || 'Database error'}`);
+    }
   };
 
   const handleRestoreSampleProducts = async () => {
-    setProducts(INITIAL_PRODUCTS);
-    showToast('Loading demo products...');
-
-    const restored = await restoreAdminProductsApi('piko_admin_session_valid');
-    if (restored && restored.length > 0) {
-      setProducts(restored);
-    } else {
-      const fresh = await fetchProducts();
-      if (fresh && fresh.length > 0) {
+    try {
+      showToast('Restoring demo products...');
+      const restored = await restoreAdminProductsApi('piko_admin_session_valid');
+      if (restored && Array.isArray(restored)) {
+        showToast('Restored default demo products!');
+        setProducts(restored);
+      } else {
+        const fresh = await fetchAdminProductsApi('piko_admin_session_valid');
         setProducts(fresh);
+        showToast('Loaded products from database.');
       }
+    } catch (err: any) {
+      showToast(`Error restoring products: ${err?.message || 'Database error'}`);
     }
-    showToast('Restored default demo products!');
   };
 
   const handleClearAllOrders = () => {

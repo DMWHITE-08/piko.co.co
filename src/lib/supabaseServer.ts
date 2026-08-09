@@ -130,8 +130,38 @@ if (supabaseUrl && supabaseKey) {
 }
 
 let inMemoryCategories = [...INITIAL_CATEGORIES];
-let inMemoryProducts: Product[] = [...INITIAL_PRODUCTS];
+let inMemoryProducts: Product[] = supabase ? [] : [...INITIAL_PRODUCTS];
 let inMemoryOrders = [...INITIAL_ORDERS];
+
+/**
+ * Normalize product object to match exact Supabase products table schema
+ */
+export function normalizeProductForDb(raw: any): Product {
+  const name = String(raw.name || 'Untitled Product').trim();
+  const computedSlug = raw.slug || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '') || `prod-${Date.now()}`;
+
+  return {
+    id: String(raw.id || `prod-${Date.now()}`),
+    name,
+    slug: String(computedSlug),
+    short_description: String(raw.short_description || name),
+    description: String(raw.description || raw.short_description || name),
+    specifications: raw.specifications && typeof raw.specifications === 'object' ? raw.specifications : {},
+    images: Array.isArray(raw.images) && raw.images.length > 0 ? raw.images : ['https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=800&auto=format&fit=crop&q=80'],
+    category_id: String(raw.category_id || `cat-${raw.category_slug || 'gifts'}`),
+    category_slug: String(raw.category_slug || 'gifts'),
+    source_price: typeof raw.source_price === 'number' ? raw.source_price : Math.round((Number(raw.selling_price) || 0) * 0.5),
+    selling_price: Number(raw.selling_price) || 0,
+    compare_at_price: raw.compare_at_price ? Number(raw.compare_at_price) : null,
+    stock_count: typeof raw.stock_count === 'number' ? raw.stock_count : (typeof raw.stock === 'number' ? raw.stock : 25),
+    in_stock: typeof raw.in_stock === 'boolean' ? raw.in_stock : true,
+    is_featured: typeof raw.is_featured === 'boolean' ? raw.is_featured : true,
+    rating: typeof raw.rating === 'number' ? raw.rating : 4.8,
+    rating_count: typeof raw.rating_count === 'number' ? raw.rating_count : (typeof raw.reviews_count === 'number' ? raw.reviews_count : 12),
+    tags: Array.isArray(raw.tags) ? raw.tags : [],
+    created_at: raw.created_at || new Date().toISOString(),
+  };
+}
 
 /**
  * Sanitize product to strip sensitive internal supplier/cost data (Rule 9).
@@ -183,7 +213,8 @@ export async function seedInitialDataIfNeeded() {
     const { error: catErr } = await supabase.from('categories').upsert(INITIAL_CATEGORIES, { onConflict: 'id' });
     if (catErr) console.warn('[Supabase] Categories seed warning:', catErr.message);
 
-    const { error: prodErr } = await supabase.from('products').upsert(INITIAL_PRODUCTS, { onConflict: 'id' });
+    const normalizedProds = INITIAL_PRODUCTS.map(normalizeProductForDb);
+    const { error: prodErr } = await supabase.from('products').upsert(normalizedProds, { onConflict: 'id' });
     if (prodErr) console.warn('[Supabase] Products seed warning:', prodErr.message);
 
     for (const ord of INITIAL_ORDERS) {
@@ -221,8 +252,9 @@ export async function getCategoriesFromDb(): Promise<Category[]> {
   if (supabase) {
     try {
       const { data, error } = await supabase.from('categories').select('*').order('name', { ascending: true });
-      if (!error && Array.isArray(data) && data.length > 0) {
-        return (data as Category[]).filter((cat) => !cat.id.startsWith('_sys_'));
+      if (!error && Array.isArray(data)) {
+        inMemoryCategories = data as Category[];
+        return inMemoryCategories.filter((cat) => !cat.id.startsWith('_sys_'));
       }
     } catch (err) {
       console.warn('[Supabase] Error fetching categories:', err);
@@ -232,23 +264,24 @@ export async function getCategoriesFromDb(): Promise<Category[]> {
 }
 
 /**
- * Get Products from Supabase or Fallback (returns raw or sanitized)
+ * Get Products from Supabase or Fallback
+ * Customer: queries public_products view (returns public fields)
+ * Admin: queries products table (returns full fields including source_price)
  */
 export async function getProductsFromDb(publicOnly: boolean = true): Promise<any[]> {
   if (supabase) {
     try {
-      const { data, error } = await supabase.from('products').select('*').order('created_at', { ascending: false });
+      const table = publicOnly ? 'public_products' : 'products';
+      const { data, error } = await supabase.from(table).select('*').order('created_at', { ascending: false });
       if (!error && Array.isArray(data)) {
-        if (data.length > 0) {
-          inMemoryProducts = data as Product[];
-        }
+        inMemoryProducts = data as Product[];
         return publicOnly ? inMemoryProducts.map(sanitizePublicProduct) : inMemoryProducts;
       }
       if (error) {
-        console.warn('[Supabase] Error querying products table:', error.message);
+        console.warn(`[Supabase] Error querying ${table} table:`, error.message);
       }
-    } catch (err) {
-      console.warn('[Supabase] Exception fetching products:', err);
+    } catch (err: any) {
+      console.warn(`[Supabase] Exception fetching products from ${publicOnly ? 'public_products' : 'products'}:`, err?.message || err);
     }
   }
 
@@ -261,8 +294,9 @@ export async function getProductsFromDb(publicOnly: boolean = true): Promise<any
 export async function getProductBySlugFromDb(slugOrId: string, publicOnly: boolean = true): Promise<any | null> {
   if (supabase) {
     try {
+      const table = publicOnly ? 'public_products' : 'products';
       const { data, error } = await supabase
-        .from('products')
+        .from(table)
         .select('*')
         .or(`slug.eq.${slugOrId},id.eq.${slugOrId}`)
         .maybeSingle();
@@ -270,8 +304,8 @@ export async function getProductBySlugFromDb(slugOrId: string, publicOnly: boole
       if (!error && data) {
         return publicOnly ? sanitizePublicProduct(data) : data;
       }
-    } catch (err) {
-      console.warn(`[Supabase] Error fetching product ${slugOrId}:`, err);
+    } catch (err: any) {
+      console.warn(`[Supabase] Error fetching product ${slugOrId}:`, err?.message || err);
     }
   }
 
@@ -284,29 +318,29 @@ export async function getProductBySlugFromDb(slugOrId: string, publicOnly: boole
 /**
  * Save / Upsert Product in Supabase
  */
-export async function saveProductToDb(product: Product): Promise<Product> {
+export async function saveProductToDb(rawProduct: Product): Promise<Product> {
+  const product = normalizeProductForDb(rawProduct);
+
+  if (supabase) {
+    const { data, error } = await supabase.from('products').upsert(product, { onConflict: 'id' }).select().single();
+    if (error) {
+      console.error('[Supabase] Error saving product to DB:', error.message);
+      throw new Error(`Database error saving product: ${error.message}`);
+    }
+    if (data) {
+      const saved = data as Product;
+      const idx = inMemoryProducts.findIndex((p) => p.id === saved.id);
+      if (idx >= 0) inMemoryProducts[idx] = saved;
+      else inMemoryProducts.unshift(saved);
+      return saved;
+    }
+  }
+
   const existingIdx = inMemoryProducts.findIndex((p) => p.id === product.id);
   if (existingIdx >= 0) {
     inMemoryProducts[existingIdx] = product;
   } else {
     inMemoryProducts.unshift(product);
-  }
-
-  if (supabase) {
-    try {
-      const { data, error } = await supabase.from('products').upsert(product, { onConflict: 'id' }).select().single();
-      if (!error && data) {
-        const saved = data as Product;
-        const idx = inMemoryProducts.findIndex((p) => p.id === saved.id);
-        if (idx >= 0) inMemoryProducts[idx] = saved;
-        else inMemoryProducts.unshift(saved);
-        return saved;
-      } else if (error) {
-        console.warn('[Supabase] Error saving product to DB:', error.message);
-      }
-    } catch (err) {
-      console.warn('[Supabase] Exception saving product:', err);
-    }
   }
   return product;
 }
@@ -315,16 +349,14 @@ export async function saveProductToDb(product: Product): Promise<Product> {
  * Delete Product in Supabase
  */
 export async function deleteProductFromDb(productId: string): Promise<boolean> {
-  inMemoryProducts = inMemoryProducts.filter((p) => p.id !== productId);
-
   if (supabase) {
-    try {
-      const { error } = await supabase.from('products').delete().eq('id', productId);
-      if (error) console.warn('[Supabase] Error deleting product:', error.message);
-    } catch (err) {
-      console.warn('[Supabase] Exception deleting product:', err);
+    const { error } = await supabase.from('products').delete().eq('id', productId);
+    if (error) {
+      console.error('[Supabase] Error deleting product from DB:', error.message);
+      throw new Error(`Database error deleting product: ${error.message}`);
     }
   }
+  inMemoryProducts = inMemoryProducts.filter((p) => p.id !== productId);
   return true;
 }
 
@@ -332,16 +364,14 @@ export async function deleteProductFromDb(productId: string): Promise<boolean> {
  * Clear All Products from Supabase
  */
 export async function clearAllProductsInDb(): Promise<boolean> {
-  inMemoryProducts = [];
-
   if (supabase) {
-    try {
-      const { error } = await supabase.from('products').delete().neq('id', '___non_existent___');
-      if (error) console.warn('[Supabase] Error clearing products from DB:', error.message);
-    } catch (err) {
-      console.warn('[Supabase] Exception clearing products from DB:', err);
+    const { error } = await supabase.from('products').delete().neq('id', '___non_existent___');
+    if (error) {
+      console.error('[Supabase] Error clearing products from DB:', error.message);
+      throw new Error(`Database error clearing products: ${error.message}`);
     }
   }
+  inMemoryProducts = [];
   return true;
 }
 
@@ -349,22 +379,20 @@ export async function clearAllProductsInDb(): Promise<boolean> {
  * Restore Default Sample Products to Supabase
  */
 export async function restoreSampleProductsInDb(): Promise<Product[]> {
-  inMemoryProducts = [...INITIAL_PRODUCTS];
+  const normalizedSamples = INITIAL_PRODUCTS.map(normalizeProductForDb);
 
   if (supabase) {
-    try {
-      const { error } = await supabase.from('products').upsert(INITIAL_PRODUCTS, { onConflict: 'id' });
-      if (error) {
-        console.warn('[Supabase] Error restoring sample products to DB:', error.message);
-      } else {
-        const { data } = await supabase.from('products').select('*').order('created_at', { ascending: false });
-        if (data && data.length > 0) {
-          inMemoryProducts = data as Product[];
-        }
-      }
-    } catch (err) {
-      console.warn('[Supabase] Exception restoring sample products to DB:', err);
+    const { error } = await supabase.from('products').upsert(normalizedSamples, { onConflict: 'id' });
+    if (error) {
+      console.error('[Supabase] Error restoring sample products to DB:', error.message);
+      throw new Error(`Database error restoring sample products: ${error.message}`);
     }
+    const { data } = await supabase.from('products').select('*').order('created_at', { ascending: false });
+    if (data) {
+      inMemoryProducts = data as Product[];
+    }
+  } else {
+    inMemoryProducts = [...normalizedSamples];
   }
   return inMemoryProducts;
 }
