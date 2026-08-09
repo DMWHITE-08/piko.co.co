@@ -334,6 +334,8 @@ export async function saveProductToDb(rawProduct: Product): Promise<Product> {
       else inMemoryProducts.unshift(saved);
       return saved;
     }
+  } else {
+    throw new Error('Supabase configuration is missing in the production environment. Please ensure SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are set.');
   }
 
   const existingIdx = inMemoryProducts.findIndex((p) => p.id === product.id);
@@ -355,6 +357,8 @@ export async function deleteProductFromDb(productId: string): Promise<boolean> {
       console.error('[Supabase] Error deleting product from DB:', error.message);
       throw new Error(`Database error deleting product: ${error.message}`);
     }
+  } else {
+    throw new Error('Supabase configuration is missing in the production environment. Please ensure SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are set.');
   }
   inMemoryProducts = inMemoryProducts.filter((p) => p.id !== productId);
   return true;
@@ -370,6 +374,8 @@ export async function clearAllProductsInDb(): Promise<boolean> {
       console.error('[Supabase] Error clearing products from DB:', error.message);
       throw new Error(`Database error clearing products: ${error.message}`);
     }
+  } else {
+    throw new Error('Supabase configuration is missing in the production environment. Please ensure SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are set.');
   }
   inMemoryProducts = [];
   return true;
@@ -392,7 +398,7 @@ export async function restoreSampleProductsInDb(): Promise<Product[]> {
       inMemoryProducts = data as Product[];
     }
   } else {
-    inMemoryProducts = [...normalizedSamples];
+    throw new Error('Supabase configuration is missing in the production environment. Please ensure SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are set.');
   }
   return inMemoryProducts;
 }
