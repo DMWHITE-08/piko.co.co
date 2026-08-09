@@ -280,7 +280,7 @@ async function startServer() {
     }
   });
 
-  app.post('/api/admin/products/restore', requireAdmin, async (req, res) => {
+  app.post('/api/admin/restore-products', requireAdmin, async (req, res) => {
     try {
       const restored = await restoreSampleProductsInDb();
       res.json(restored);

@@ -176,7 +176,7 @@ export async function clearAdminProductsApi(token: string): Promise<boolean> {
  * Restore Sample Products via Express API (/api/admin/products/restore)
  */
 export async function restoreAdminProductsApi(token: string): Promise<Product[]> {
-  const res = await fetch('/api/admin/products/restore', {
+  const res = await fetch('/api/admin/restore-products', {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
   });
