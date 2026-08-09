@@ -298,46 +298,56 @@ export default function App() {
   };
 
   const handleAddProduct = async (newProd: Product) => {
-    const saved = await saveAdminProductApi(newProd, 'piko_admin_session_valid');
-    const prodToInsert = saved || newProd;
+    setProducts((prev) => [newProd, ...prev.filter((p) => p.id !== newProd.id)]);
+    showToast(`Added ${newProd.name} to store!`);
+
+    await saveAdminProductApi(newProd, 'piko_admin_session_valid');
     const fresh = await fetchProducts();
-    setProducts(fresh.length > 0 ? fresh : [prodToInsert, ...products]);
-    showToast(`Added ${prodToInsert.name} to store!`);
+    if (fresh && fresh.length > 0) {
+      setProducts(fresh);
+    }
   };
 
   const handleUpdateProduct = async (updatedProd: Product) => {
+    setProducts((prev) => prev.map((p) => (p.id === updatedProd.id ? updatedProd : p)));
+    showToast(`Updated ${updatedProd.name}`);
+
     await saveAdminProductApi(updatedProd, 'piko_admin_session_valid');
     const fresh = await fetchProducts();
-    if (fresh.length > 0) {
+    if (fresh && fresh.length > 0) {
       setProducts(fresh);
-    } else {
-      setProducts((prev) => prev.map((p) => (p.id === updatedProd.id ? updatedProd : p)));
     }
-    showToast(`Updated ${updatedProd.name}`);
   };
 
   const handleDeleteProduct = async (productId: string) => {
+    setProducts((prev) => prev.filter((p) => p.id !== productId));
+    showToast('Product removed');
+
     await deleteAdminProductApi(productId, 'piko_admin_session_valid');
     const fresh = await fetchProducts();
-    setProducts(fresh.filter((p) => p.id !== productId));
-    showToast('Product removed');
+    setProducts(fresh);
   };
 
   const handleClearAllProducts = async () => {
-    await clearAdminProductsApi('piko_admin_session_valid');
     setProducts([]);
+    await clearAdminProductsApi('piko_admin_session_valid');
     showToast('Catalog cleared from database!');
   };
 
   const handleRestoreSampleProducts = async () => {
+    setProducts(INITIAL_PRODUCTS);
+    showToast('Loading demo products...');
+
     const restored = await restoreAdminProductsApi('piko_admin_session_valid');
     if (restored && restored.length > 0) {
       setProducts(restored);
     } else {
       const fresh = await fetchProducts();
-      setProducts(fresh.length > 0 ? fresh : INITIAL_PRODUCTS);
+      if (fresh && fresh.length > 0) {
+        setProducts(fresh);
+      }
     }
-    showToast('Restored default demo products to store!');
+    showToast('Restored default demo products!');
   };
 
   const handleClearAllOrders = () => {

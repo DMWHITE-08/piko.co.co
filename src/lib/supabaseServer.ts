@@ -94,18 +94,21 @@ function getEffectiveSupabaseUrl(): string | undefined {
   let url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_KEY;
 
-  if ((!url || url.includes('your-project-ref') || url.trim() === '') && key && key.includes('.')) {
-    try {
-      const parts = key.split('.');
-      if (parts.length >= 2) {
-        const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf-8'));
-        if (payload.ref) {
-          return `https://${payload.ref}.supabase.co`;
+  if (!url || url.includes('your-project-ref') || url.includes('placeholder') || url.trim() === '') {
+    if (key && key.includes('.')) {
+      try {
+        const parts = key.split('.');
+        if (parts.length >= 2) {
+          const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf-8'));
+          if (payload && payload.ref) {
+            return `https://${payload.ref}.supabase.co`;
+          }
         }
+      } catch (err) {
+        // ignore
       }
-    } catch (err) {
-      // ignore
     }
+    return undefined;
   }
   return url;
 }
@@ -123,11 +126,11 @@ if (supabaseUrl && supabaseKey) {
     console.warn('[Supabase] Failed to initialize client, using fallback:', err);
   }
 } else {
-  console.log('[Supabase] Credentials not found in environment. Running with local fallback data.');
+  console.log('[Supabase] Credentials not found or placeholder URL used. Running with local fallback store.');
 }
 
 let inMemoryCategories = [...INITIAL_CATEGORIES];
-let inMemoryProducts = supabase ? [] : [...INITIAL_PRODUCTS];
+let inMemoryProducts: Product[] = [...INITIAL_PRODUCTS];
 let inMemoryOrders = [...INITIAL_ORDERS];
 
 /**
@@ -236,7 +239,9 @@ export async function getProductsFromDb(publicOnly: boolean = true): Promise<any
     try {
       const { data, error } = await supabase.from('products').select('*').order('created_at', { ascending: false });
       if (!error && Array.isArray(data)) {
-        inMemoryProducts = data as Product[];
+        if (data.length > 0) {
+          inMemoryProducts = data as Product[];
+        }
         return publicOnly ? inMemoryProducts.map(sanitizePublicProduct) : inMemoryProducts;
       }
       if (error) {
@@ -291,10 +296,16 @@ export async function saveProductToDb(product: Product): Promise<Product> {
     try {
       const { data, error } = await supabase.from('products').upsert(product, { onConflict: 'id' }).select().single();
       if (!error && data) {
-        return data as Product;
+        const saved = data as Product;
+        const idx = inMemoryProducts.findIndex((p) => p.id === saved.id);
+        if (idx >= 0) inMemoryProducts[idx] = saved;
+        else inMemoryProducts.unshift(saved);
+        return saved;
+      } else if (error) {
+        console.warn('[Supabase] Error saving product to DB:', error.message);
       }
     } catch (err) {
-      console.warn('[Supabase] Error saving product:', err);
+      console.warn('[Supabase] Exception saving product:', err);
     }
   }
   return product;
@@ -309,9 +320,9 @@ export async function deleteProductFromDb(productId: string): Promise<boolean> {
   if (supabase) {
     try {
       const { error } = await supabase.from('products').delete().eq('id', productId);
-      if (!error) return true;
+      if (error) console.warn('[Supabase] Error deleting product:', error.message);
     } catch (err) {
-      console.warn('[Supabase] Error deleting product:', err);
+      console.warn('[Supabase] Exception deleting product:', err);
     }
   }
   return true;
@@ -326,9 +337,9 @@ export async function clearAllProductsInDb(): Promise<boolean> {
   if (supabase) {
     try {
       const { error } = await supabase.from('products').delete().neq('id', '___non_existent___');
-      if (error) console.warn('[Supabase] Error clearing products from DB:', error);
+      if (error) console.warn('[Supabase] Error clearing products from DB:', error.message);
     } catch (err) {
-      console.warn('[Supabase] Error clearing products from DB:', err);
+      console.warn('[Supabase] Exception clearing products from DB:', err);
     }
   }
   return true;
@@ -342,9 +353,17 @@ export async function restoreSampleProductsInDb(): Promise<Product[]> {
 
   if (supabase) {
     try {
-      await supabase.from('products').upsert(INITIAL_PRODUCTS, { onConflict: 'id' });
+      const { error } = await supabase.from('products').upsert(INITIAL_PRODUCTS, { onConflict: 'id' });
+      if (error) {
+        console.warn('[Supabase] Error restoring sample products to DB:', error.message);
+      } else {
+        const { data } = await supabase.from('products').select('*').order('created_at', { ascending: false });
+        if (data && data.length > 0) {
+          inMemoryProducts = data as Product[];
+        }
+      }
     } catch (err) {
-      console.warn('[Supabase] Error restoring sample products to DB:', err);
+      console.warn('[Supabase] Exception restoring sample products to DB:', err);
     }
   }
   return inMemoryProducts;

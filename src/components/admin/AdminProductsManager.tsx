@@ -62,31 +62,35 @@ export const AdminProductsManager: React.FC<AdminProductsManagerProps> = ({
     e.preventDefault();
     if (!name || !sellingPrice) return;
 
-    const img = imageUrl.trim() || 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=800&auto=format&fit=crop&q=80';
-    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+    const trimmedImg = imageUrl.trim();
+    const imagesList = trimmedImg
+      ? trimmedImg.split(/[\n,]+/).map((s) => s.trim()).filter(Boolean)
+      : ['https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=800&auto=format&fit=crop&q=80'];
+
+    const computedSlug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '') || `prod-${generateId()}`;
 
     if (editingProduct) {
       const updated: Product = {
         ...editingProduct,
         name,
-        slug,
-        short_description: shortDesc,
-        description: desc,
+        slug: computedSlug,
+        short_description: shortDesc || name,
+        description: desc || shortDesc || name,
         category_slug: categorySlug,
         selling_price: Number(sellingPrice),
         compare_at_price: Number(comparePrice) || null,
-        images: [img],
+        images: imagesList.length > 0 ? imagesList : ['https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=800&auto=format&fit=crop&q=80'],
       };
       onUpdateProduct(updated);
     } else {
       const newProd: Product = {
-        id: generateId(),
+        id: `prod-${generateId()}`,
         name,
-        slug,
-        short_description: shortDesc,
-        description: desc,
+        slug: computedSlug,
+        short_description: shortDesc || name,
+        description: desc || shortDesc || name,
         specifications: { Category: categorySlug },
-        images: [img],
+        images: imagesList.length > 0 ? imagesList : ['https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=800&auto=format&fit=crop&q=80'],
         category_id: `cat-${categorySlug}`,
         category_slug: categorySlug,
         source_price: Math.round(Number(sellingPrice) * 0.5),
