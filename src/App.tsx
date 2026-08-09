@@ -22,6 +22,8 @@ import {
   deleteAdminProductApi,
   clearAdminProductsApi,
   restoreAdminProductsApi,
+  fetchAdminOrdersApi,
+  clearAdminOrdersApi,
   updateAdminOrderStatusApi,
 } from './lib/api';
 import { CartItem, Category, Order, OrderStatus, PaymentStatus, Product } from './types';
@@ -76,11 +78,13 @@ export default function App() {
   const triggerAdminAccess = () => {
     const authStatus = isAdminAuthenticated();
     if (authStatus) {
+      setIsAdmin(true);
+      setAdminAuth(true);
       setActiveView('admin');
       showToast('Admin Dashboard opened');
     } else {
       setIsAdminLoginOpen(true);
-      showToast('Secret Admin Login opened');
+      showToast('Secret Admin Login');
     }
   };
 
@@ -92,24 +96,45 @@ export default function App() {
     const authStatus = isAdminAuthenticated();
     setIsAdmin(authStatus);
 
-    // Load products and categories directly from Express API / Supabase
+    // Load products, categories, and orders directly from Express API / Supabase
     const refreshCatalog = () => {
       const isAuth = isAdminAuthenticated();
       const productPromise = isAuth
         ? fetchAdminProductsApi('piko_admin_session_valid')
         : fetchProducts();
 
-      productPromise.then((prods) => {
-        if (prods && Array.isArray(prods)) {
-          setProducts(prods);
-        }
-      });
+      productPromise
+        .then((prods) => {
+          if (prods && Array.isArray(prods)) {
+            setProducts(prods);
+          }
+        })
+        .catch((err) => {
+          console.warn('[Catalog Refresh Error]:', err);
+        });
 
-      fetchCategories().then((cats) => {
-        if (cats && Array.isArray(cats)) {
-          setCategories(cats);
-        }
-      });
+      fetchCategories()
+        .then((cats) => {
+          if (cats && Array.isArray(cats)) {
+            setCategories(cats);
+          }
+        })
+        .catch((err) => {
+          console.warn('[Category Refresh Error]:', err);
+        });
+
+      if (isAuth) {
+        fetchAdminOrdersApi('piko_admin_session_valid')
+          .then((fetchedOrders) => {
+            if (fetchedOrders && Array.isArray(fetchedOrders)) {
+              setOrders(fetchedOrders);
+              saveOrders(fetchedOrders);
+            }
+          })
+          .catch((err) => {
+            console.warn('[Orders Refresh Error]:', err);
+          });
+      }
     };
 
     refreshCatalog();
@@ -294,14 +319,17 @@ export default function App() {
       })
     );
 
-    // Call API
-    await updateAdminOrderStatusApi(
-      orderId,
-      { status, payment_status, courier_name, tracking_number, notes },
-      'piko_admin_session_valid'
-    );
-
-    showToast('Order details updated');
+    try {
+      // Call API
+      await updateAdminOrderStatusApi(
+        orderId,
+        { status, payment_status, courier_name, tracking_number, notes },
+        'piko_admin_session_valid'
+      );
+      showToast('Order details updated');
+    } catch (err: any) {
+      showToast(`Error updating order: ${err?.message || 'Database error'}`);
+    }
   };
 
   const handleAddProduct = async (newProd: Product) => {
@@ -380,14 +408,22 @@ export default function App() {
     }
   };
 
-  const handleClearAllOrders = () => {
+  const handleClearAllOrders = async () => {
     setOrders([]);
     saveOrders([]);
-    showToast('All order history cleared!');
+    try {
+      await clearAdminOrdersApi('piko_admin_session_valid');
+      showToast('All order history cleared from database!');
+    } catch (err: any) {
+      showToast(`Error clearing orders: ${err?.message || 'Database error'}`);
+    }
   };
 
-  const handleGenerateDemoOrder = () => {
-    if (products.length === 0) return;
+  const handleGenerateDemoOrder = async () => {
+    if (products.length === 0) {
+      showToast('No products in catalog. Add or load sample products first!');
+      return;
+    }
     const randomProduct = products[Math.floor(Math.random() * products.length)];
     const orderNum = generateOrderNumber();
     const now = new Date().toISOString();
@@ -437,7 +473,13 @@ export default function App() {
 
     const updated = addOrder(demoOrder);
     setOrders(updated);
-    showToast(`Simulated Order ${orderNum} added!`);
+
+    try {
+      await createOrderApi(demoOrder);
+      showToast(`Simulated Order ${orderNum} added and saved to database!`);
+    } catch (err: any) {
+      showToast(`Simulated order added locally (${err?.message || 'Database sync issue'})`);
+    }
   };
 
   return (
@@ -474,23 +516,35 @@ export default function App() {
 
       {/* View Routing */}
       <main className="flex-1">
-        {activeView === 'admin' && isAdmin ? (
-          <AdminDashboard
-            orders={orders}
-            products={products}
-            categories={categories}
-            onUpdateOrderStatus={handleUpdateOrderStatus}
-            onAddProduct={handleAddProduct}
-            onUpdateProduct={handleUpdateProduct}
-            onDeleteProduct={handleDeleteProduct}
-            onClearAllProducts={handleClearAllProducts}
-            onRestoreSampleProducts={handleRestoreSampleProducts}
-            onClearAllOrders={handleClearAllOrders}
-            onGenerateDemoOrder={handleGenerateDemoOrder}
-            onLogoutAdmin={handleLogoutAdmin}
-            onBackToShop={() => setActiveView('shop')}
-            onShowToast={showToast}
-          />
+        {activeView === 'admin' ? (
+          isAdmin || isAdminAuthenticated() ? (
+            <AdminDashboard
+              orders={orders}
+              products={products}
+              categories={categories}
+              onUpdateOrderStatus={handleUpdateOrderStatus}
+              onAddProduct={handleAddProduct}
+              onUpdateProduct={handleUpdateProduct}
+              onDeleteProduct={handleDeleteProduct}
+              onClearAllProducts={handleClearAllProducts}
+              onRestoreSampleProducts={handleRestoreSampleProducts}
+              onClearAllOrders={handleClearAllOrders}
+              onGenerateDemoOrder={handleGenerateDemoOrder}
+              onLogoutAdmin={handleLogoutAdmin}
+              onBackToShop={() => setActiveView('shop')}
+              onShowToast={showToast}
+            />
+          ) : (
+            <div className="p-12 text-center space-y-4">
+              <p className="text-sm font-bold text-destructive">Admin Authentication Required</p>
+              <button
+                onClick={() => setIsAdminLoginOpen(true)}
+                className="rounded-2xl bg-rose px-6 py-3 text-xs font-bold text-rose-foreground shadow-md"
+              >
+                Open Admin Login
+              </button>
+            </div>
+          )
         ) : activeView === 'track' ? (
           <TrackOrderView
             orders={orders}

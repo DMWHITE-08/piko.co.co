@@ -51,19 +51,15 @@ export const AdminOverview: React.FC<AdminOverviewProps> = ({
         <div className="flex flex-wrap items-center gap-2">
           {productsCount > 0 ? (
             <button
-              onClick={() => {
-                if (window.confirm('Clear all products to start with a clean store catalog?')) {
-                  onClearAllProducts();
-                }
-              }}
-              className="flex items-center gap-1.5 rounded-2xl bg-destructive/10 border border-destructive/20 px-3.5 py-2.5 text-xs font-bold text-destructive hover:bg-destructive hover:text-white transition-all"
+              onClick={onClearAllProducts}
+              className="flex items-center gap-1.5 rounded-2xl bg-destructive/10 border border-destructive/20 px-3.5 py-2.5 text-xs font-bold text-destructive hover:bg-destructive hover:text-white transition-all cursor-pointer"
             >
               <span>Clear Products Catalog</span>
             </button>
           ) : (
             <button
               onClick={onRestoreSampleProducts}
-              className="flex items-center gap-1.5 rounded-2xl bg-secondary border border-border px-3.5 py-2.5 text-xs font-bold text-foreground hover:bg-rose/10 hover:text-rose transition-all"
+              className="flex items-center gap-1.5 rounded-2xl bg-secondary border border-border px-3.5 py-2.5 text-xs font-bold text-foreground hover:bg-rose/10 hover:text-rose transition-all cursor-pointer"
             >
               <Sparkles className="size-3.5 text-rose" />
               <span>Load Sample Products</span>
@@ -72,12 +68,8 @@ export const AdminOverview: React.FC<AdminOverviewProps> = ({
 
           {orders.length > 0 && (
             <button
-              onClick={() => {
-                if (window.confirm('Clear all order history?')) {
-                  onClearAllOrders();
-                }
-              }}
-              className="flex items-center gap-1.5 rounded-2xl bg-secondary border border-border px-3.5 py-2.5 text-xs font-bold text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
+              onClick={onClearAllOrders}
+              className="flex items-center gap-1.5 rounded-2xl bg-secondary border border-border px-3.5 py-2.5 text-xs font-bold text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all cursor-pointer"
             >
               <span>Wipe Orders History</span>
             </button>

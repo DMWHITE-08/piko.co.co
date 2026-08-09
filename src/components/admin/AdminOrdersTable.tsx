@@ -122,12 +122,8 @@ export const AdminOrdersTable: React.FC<AdminOrdersTableProps> = ({
         <div className="flex items-center gap-3">
           {orders.length > 0 && onClearAllOrders && (
             <button
-              onClick={() => {
-                if (window.confirm('Are you sure you want to clear all order history?')) {
-                  onClearAllOrders();
-                }
-              }}
-              className="rounded-2xl border border-destructive/20 bg-destructive/10 px-3.5 py-2 text-xs font-bold text-destructive hover:bg-destructive hover:text-white transition-all whitespace-nowrap"
+              onClick={onClearAllOrders}
+              className="rounded-2xl border border-destructive/20 bg-destructive/10 px-3.5 py-2 text-xs font-bold text-destructive hover:bg-destructive hover:text-white transition-all whitespace-nowrap cursor-pointer"
             >
               Clear Order History
             </button>
@@ -329,7 +325,12 @@ export const AdminOrdersTable: React.FC<AdminOrdersTableProps> = ({
 
       {/* Modal for Order Details & Courier/Tracking Management */}
       {selectedOrderDetails && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/95 p-2 sm:p-4 flex items-start justify-center min-h-full py-4 sm:py-8 piko-fade-up">
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setSelectedOrderDetails(null);
+          }}
+          className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-sm p-2 sm:p-4 flex items-start justify-center min-h-full py-4 sm:py-8 piko-fade-up"
+        >
           <div className="relative my-auto w-full max-w-xl max-h-[92vh] overflow-y-auto rounded-3xl border-2 border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-6 shadow-2xl space-y-4">
             <button
               onClick={() => setSelectedOrderDetails(null)}

@@ -225,17 +225,31 @@ export async function deleteAdminProductApi(productId: string, token: string): P
  * Fetch Admin Orders via Express API (/api/admin/orders)
  */
 export async function fetchAdminOrdersApi(token: string): Promise<Order[]> {
-  try {
-    const res = await fetch('/api/admin/orders', {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (res.ok) {
-      return await res.json();
-    }
-  } catch (err) {
-    console.warn('[API] Error fetching admin orders:', err);
+  const res = await fetch('/api/admin/orders?_t=' + Date.now(), {
+    cache: 'no-store',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.details || errData.error || `Failed to fetch admin orders (HTTP ${res.status})`);
   }
-  return [];
+  const data = await res.json();
+  return Array.isArray(data) ? data : [];
+}
+
+/**
+ * Clear All Admin Orders via Express API (/api/admin/orders)
+ */
+export async function clearAdminOrdersApi(token: string): Promise<boolean> {
+  const res = await fetch('/api/admin/orders', {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.details || errData.error || `Failed to clear orders (HTTP ${res.status})`);
+  }
+  return true;
 }
 
 /**
@@ -252,21 +266,19 @@ export async function updateAdminOrderStatusApi(
   },
   token: string
 ): Promise<Order | null> {
-  try {
-    const res = await fetch(`/api/admin/orders/${encodeURIComponent(orderId)}/status`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(details),
-    });
-    if (res.ok) {
-      return await res.json();
-    }
-  } catch (err) {
-    console.warn('[API] Error updating order status:', err);
+  const res = await fetch(`/api/admin/orders/${encodeURIComponent(orderId)}/status`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(details),
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.details || errData.error || `Failed to update order (HTTP ${res.status})`);
   }
-  return null;
+  return await res.json();
 }
+
 

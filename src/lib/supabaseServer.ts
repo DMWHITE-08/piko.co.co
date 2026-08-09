@@ -693,3 +693,19 @@ export async function updateOrderStatusInDb(orderId: string, status: Order['orde
   return updatedObj;
 }
 
+/**
+ * Clear All Orders from Supabase or Fallback
+ */
+export async function clearAllOrdersInDb(): Promise<boolean> {
+  inMemoryOrders = [];
+  if (supabase) {
+    try {
+      await supabase.from('order_items').delete().neq('id', '0');
+      await supabase.from('orders').delete().neq('id', '0');
+    } catch (err) {
+      console.warn('[Supabase] Error clearing orders:', err);
+    }
+  }
+  return true;
+}
+

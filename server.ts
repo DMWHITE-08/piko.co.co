@@ -13,6 +13,7 @@ import {
   restoreSampleProductsInDb,
   createOrderInDb,
   getOrdersFromDb,
+  clearAllOrdersInDb,
   getOrderByIdOrNumberFromDb,
   updateOrderStatusInDb,
   updateOrderAdminDetailsInDb,
@@ -295,6 +296,15 @@ async function startServer() {
       res.json(orders);
     } catch (err: any) {
       res.status(500).json({ error: 'Failed to fetch admin orders', details: err?.message });
+    }
+  });
+
+  app.delete('/api/admin/orders', requireAdmin, async (req, res) => {
+    try {
+      await clearAllOrdersInDb();
+      res.json({ success: true, message: 'All orders cleared from store history' });
+    } catch (err: any) {
+      res.status(500).json({ error: 'Failed to clear orders', details: err?.message });
     }
   });
 
