@@ -24,10 +24,11 @@
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
     "recharts": "^3.10.1",
-    "vite": "^6.2.3"
+    "vite": "^6.2.3",
+    "serverless-http": "^2.8.0"
   },
   "devDependencies": {
-    "@types/node": "^22.14.0",
+    "@types-node": "^22.14.0",
     "autoprefixer": "^10.4.21",
     "esbuild": "^0.25.0",
     "tailwindcss": "^4.1.14",
