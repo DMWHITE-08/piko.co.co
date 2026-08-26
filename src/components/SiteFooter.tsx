@@ -138,15 +138,7 @@ export const SiteFooter: React.FC<SiteFooterProps> = ({
         <div className="piko-container flex flex-col items-center justify-between gap-2 sm:flex-row">
           <p>© {new Date().getFullYear()} PIKO Treasures. All rights reserved.</p>
           <p className="flex items-center gap-1">
-            <span>Made in India with</span>
-            <button
-              onClick={handleSecretHeartClick}
-              type="button"
-              className="inline-flex items-center text-rose hover:scale-125 transition-transform"
-              title="PIKO"
-            >
-              ❤️
-            </button>
+            <span>Made in India.</span>
           </p>
         </div>
       </div>
